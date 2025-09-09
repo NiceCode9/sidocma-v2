@@ -1,0 +1,1510 @@
+@extends('layouts.app', ['title' => 'Folder Managers | IDocMA'])
+
+@section('content')
+    <scetion class="section">
+        <div class="section-header">
+            <h1>
+                <i class="fas fa-folder-open mr-2"></i>
+                Manajemen Dokumen
+            </h1>
+            <div class="section-header-button">
+                <button class="btn btn-primary mr-2" onclick="showCreateFolderModal()">
+                    <i class="fas fa-folder-plus mr-1"></i>
+                    Buat Folder
+                </button>
+                <button class="btn btn-success" onclick="showUploadModal()">
+                    <i class="fas fa-upload mr-1"></i>
+                    Upload File
+                </button>
+            </div>
+        </div>
+
+        <div class="section-body">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb bg-white border" id="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="#" onclick="navigateToFolder(null)">
+                            <i class="fas fa-home mr-1"></i>Root
+                        </a>
+                    </li>
+                </ol>
+            </nav>
+
+            <!-- Toolbar -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div class="search-input-container">
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search" id="searchIcon"></i>
+                                        </span>
+                                    </div>
+                                    <input type="text" class="form-control" placeholder="Cari folder atau file..."
+                                        id="searchInput" autocomplete="off">
+                                    <button type="button" class="clear-search-btn" onclick="clearSearch()"
+                                        title="Clear search">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="search-suggestions" id="searchSuggestions" style="display: none;">
+                                    <!-- Search suggestions will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted" id="itemsCounter" style="display: none;">
+                                <!-- Items counter will be updated by JavaScript -->
+                            </small>
+                        </div>
+                        <div class="col-md-3 text-right">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-primary active" onclick="setViewMode('grid')"
+                                    title="Grid View">
+                                    <i class="fas fa-th-large"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" onclick="setViewMode('list')"
+                                    title="List View">
+                                    <i class="fas fa-list"></i>
+                                </button>
+                            </div>
+                            <button class="btn btn-outline-secondary ml-2" onclick="loadFolderContent(currentFolderId)"
+                                title="Refresh">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="row" id="contentArea">
+                <!-- Folders will be loaded here -->
+            </div>
+
+            <!-- Ganti Load More section dengan ini: -->
+            <div id="loadMoreContainer" class="text-center mt-4" style="display: none;">
+                <!-- Loading Spinner -->
+                <div id="loadMoreSpinner" class="mb-3" style="display: none;">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <span class="ml-2 text-muted">Loading more items...</span>
+                </div>
+
+                <!-- Load More Button -->
+                <button id="loadMoreButton" class="btn btn-outline-primary btn-lg px-4" onclick="loadMoreManual()">
+                    <i class="fas fa-plus mr-2"></i>Load More
+                </button>
+
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Scroll down to automatically load more items
+                    </small>
+                </div>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div class="text-center py-5" id="loadingSpinner" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Memuat data...</p>
+            </div>
+
+            <!-- Empty State -->
+            <div class="text-center py-5" id="emptyState" style="display: none;">
+                <i class="fas fa-folder-open" style="font-size: 4rem; color: #6c757d; margin-bottom: 20px;"></i>
+                <h4>Folder Kosong</h4>
+                <p class="text-muted">Belum ada folder atau file di dalam direktori ini.</p>
+                <button class="btn btn-primary" onclick="showCreateFolderModal()">
+                    <i class="fas fa-folder-plus mr-1"></i>
+                    Buat Folder Pertama
+                </button>
+            </div>
+        </div>
+
+        <!-- Scroll Progress Indicator (opsional - tambahkan di bagian bawah) -->
+        <div id="scrollProgress"
+            style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background: linear-gradient(90deg, #007bff, #28a745);
+            z-index: 9999;
+            transition: width 0.1s ease;
+        ">
+        </div>
+
+        <!-- Floating Back to Top Button -->
+        <button id="backToTop" class="btn btn-primary rounded-circle shadow"
+            style="
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                display: none;
+                z-index: 1000;
+            "
+            onclick="scrollToTop()">
+            <i class="fas fa-arrow-up"></i>
+        </button>
+
+    </scetion>
+
+    <!-- Modal Create Folder -->
+    <div class="modal fade" id="createFolderModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Buat Folder Baru</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="createFolderForm">
+                        <div class="form-group">
+                            <label>Nama Folder <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="folderName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Deskripsi</label>
+                            <textarea class="form-control" id="folderDescription" rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Unit</label>
+                            <select class="form-control" id="folderUnit">
+                                <option value="">-- Pilih Unit --</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-primary" onclick="createFolder()">
+                        <i class="fas fa-save mr-1"></i>
+                        Buat Folder
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Upload File -->
+    <div class="modal fade" id="uploadModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Upload File</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label>Pilih File <span class="text-danger">*</span></label>
+                            <div class="custom-file">
+                                <input type="file" class="custom-file-input" id="fileInput" multiple>
+                                <label class="custom-file-label" for="fileInput">Pilih file...</label>
+                            </div>
+                            <small class="form-text text-muted">Maksimal ukuran file 10MB per file</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Is Latter</label>
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="is_latter" value="1">
+                                <label class="custom-control-label" for="is_latter">Mark as Latter Document</label>
+                            </div>
+                            <small class="form-text text-muted">Centang jika dokumen ini adalah surat/dokumen resmi</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Deskripsi</label>
+                            <textarea class="form-control" id="fileDescription" rows="3"
+                                placeholder="Deskripsi opsional untuk file yang akan diupload"></textarea>
+                        </div>
+                    </form>
+
+                    <div id="uploadProgress" style="display: none;">
+                        <div class="progress mb-2">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+                                style="width: 0%"></div>
+                        </div>
+                        <div class="text-center">
+                            <small id="uploadStatus">Uploading...</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-success" id="uploadBtn" onclick="uploadFiles()">
+                        <i class="fas fa-upload mr-1"></i>
+                        Upload
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection
+
+@push('scripts')
+    <script>
+        // Scroll progress indicator
+        $(window).scroll(function() {
+            const scrollTop = $(window).scrollTop();
+            const docHeight = $(document).height();
+            const winHeight = $(window).height();
+            const scrollPercent = (scrollTop / (docHeight - winHeight)) * 100;
+            $('#scrollProgress').css('width', scrollPercent + '%');
+
+            // Show/hide back to top button
+            if (scrollTop > 500) {
+                $('#backToTop').fadeIn();
+            } else {
+                $('#backToTop').fadeOut();
+            }
+        });
+
+        function scrollToTop() {
+            $('html, body').animate({
+                scrollTop: 0
+            }, 800);
+        }
+    </script>
+    <script>
+        let currentFolderId = null;
+        let viewMode = 'grid';
+        let isLoading = false;
+        let hasMoreItems = true;
+        let currentOffset = 0;
+        let itemsPerLoad = 10;
+        let totalItems = 0;
+        let loadedItems = 0;
+        let isSearchMode = false;
+
+        $(document).ready(function() {
+            // Load initial content
+            loadFolderContent(null);
+
+            // Setup infinite scroll
+            $(window).on('scroll', throttle(handleInfiniteScroll, 150));
+
+            // Load units for folder creation
+            loadUnits();
+
+            // Setup search
+            $('#searchInput').on('keyup', debounce(() => {
+                performSearch($('#searchInput').val());
+            }, 500));
+
+            // File input change handler
+            $('#fileInput').on('change', function() {
+                const files = Array.from(this.files);
+                if (files.length > 0) {
+                    $('.custom-file-label').text(`${files.length} file(s) selected`);
+                } else {
+                    $('.custom-file-label').text('Pilih file...');
+                }
+            });
+
+            const searchInput = $('#searchInput');
+            const searchContainer = $('.search-input-container');
+            const clearBtn = $('.clear-search-btn');
+            const searchIcon = $('#searchIcon');
+
+            // Show/hide clear button
+            searchInput.on('input', function() {
+                const hasContent = $(this).val().length > 0;
+                searchContainer.toggleClass('has-content', hasContent);
+
+                // Change icon during search
+                if (hasContent) {
+                    searchIcon.removeClass('fa-search').addClass('fa-search text-primary');
+                } else {
+                    searchIcon.removeClass('text-primary').addClass('fa-search');
+                }
+            });
+
+            // Handle Enter key
+            searchInput.on('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    performSearch($(this).val());
+                }
+
+                // Handle Escape key to clear search
+                if (e.key === 'Escape') {
+                    clearSearch();
+                }
+            });
+
+            // Focus handling
+            searchInput.on('focus', function() {
+                $(this).parent().parent().addClass('shadow-sm');
+            }).on('blur', function() {
+                $(this).parent().parent().removeClass('shadow-sm');
+            });
+
+            $('#uploadModal').on('hidden.bs.modal', function() {
+                // Reset form dan checkbox saat modal ditutup
+                $('#uploadForm')[0].reset();
+                $('#is_latter').prop('checked', false);
+                $('.custom-file-label').text('Pilih file...');
+                $('#uploadProgress').hide();
+                $('.modal-footer button').prop('disabled', false);
+                $('.progress-bar').css('width', '0%');
+                $('#uploadStatus').text('Uploading...');
+            });
+        });
+    </script>
+
+    <script>
+        function loadFolderContent(folderId) {
+            resetLoadingState();
+            showLoading();
+            currentFolderId = folderId;
+
+            const url = folderId ?
+                `{{ url('folders/browse') }}/${folderId}` :
+                `{{ url('folders/browse') }}`;
+
+            console.log('Loading folder:', folderId, 'URL:', url);
+
+            $.get(url, {
+                    offset: 0,
+                    limit: itemsPerLoad
+                })
+                .done(function(response) {
+                    console.log('Response received:', response);
+
+                    updateBreadcrumb(response.breadcrumb, response.current_folder);
+
+                    // Clear content area
+                    $('#contentArea').html('');
+
+                    // Check if we have any data
+                    if (response.folders.length === 0 && response.documents.length === 0) {
+                        console.log('No data found, showing empty state');
+                        $('#contentArea').hide();
+                        $('#emptyState').show();
+                    } else {
+                        console.log('Data found:', response.folders.length, 'folders,', response.documents.length,
+                            'documents');
+                        $('#emptyState').hide();
+                        $('#contentArea').show();
+
+                        // Use renderContent instead of appendItemsToContent for initial load
+                        renderContent(response.folders, response.documents);
+                    }
+
+                    // Update state
+                    currentOffset = response.loaded_items || (response.folders.length + response.documents.length);
+                    hasMoreItems = response.has_more || false;
+                    totalItems = response.total_items || (response.folders.length + response.documents.length);
+                    loadedItems = response.loaded_items || (response.folders.length + response.documents.length);
+
+                    updateItemsCounter();
+                    toggleLoadMoreButton();
+                    hideLoading();
+                })
+                .fail(function(xhr) {
+                    console.error('Failed to load folder content:', xhr);
+                    hideLoading();
+                    handleLoadError(xhr);
+                });
+        }
+
+        function loadMoreItems() {
+            // Don't load more during search
+            if (isSearchMode || isLoading || !hasMoreItems) {
+                return;
+            }
+
+            // Rest of the function remains the same...
+            isLoading = true;
+            showLoadMoreSpinner();
+
+            const url = currentFolderId ?
+                `{{ url('folders/browse') }}/${currentFolderId}` :
+                `{{ url('folders/browse') }}`;
+
+            $.get(url, {
+                    offset: currentOffset,
+                    limit: itemsPerLoad
+                })
+                .done(function(response) {
+                    appendItemsToContent(response.folders, response.documents);
+
+                    // Update state
+                    currentOffset = response.loaded_items;
+                    hasMoreItems = response.has_more;
+                    loadedItems = response.loaded_items;
+
+                    updateItemsCounter();
+                    toggleLoadMoreButton();
+                })
+                .fail(function() {
+                    showAlert('error', 'Gagal memuat item tambahan');
+                })
+                .always(function() {
+                    isLoading = false;
+                    hideLoadMoreSpinner();
+                });
+        }
+
+        function appendItemsToContent(folders, documents) {
+            const contentArea = $('#contentArea');
+
+            console.log('Appending content:', folders.length, 'folders,', documents.length, 'documents');
+
+            // Show content area if hidden
+            if (contentArea.is(':hidden')) {
+                contentArea.show();
+                $('#emptyState').hide();
+            }
+
+            // Add folders
+            if (folders && folders.length > 0) {
+                folders.forEach(folder => {
+                    const folderHtml = viewMode === 'grid' ? renderFolderGrid(folder) : renderFolderList(folder);
+                    const $element = $(folderHtml).hide();
+                    contentArea.append($element);
+                    $element.fadeIn(400);
+                });
+            }
+
+            // Add documents
+            if (documents && documents.length > 0) {
+                documents.forEach(document => {
+                    const documentHtml = viewMode === 'grid' ? renderDocumentGrid(document) : renderDocumentList(
+                        document);
+                    const $element = $(documentHtml).hide();
+                    contentArea.append($element);
+                    $element.fadeIn(400);
+                });
+            }
+
+            console.log('Content appended, total items in DOM:', contentArea.children().length);
+
+            // Show empty state if still no items
+            if (contentArea.children().length === 0) {
+                contentArea.hide();
+                $('#emptyState').show();
+            }
+        }
+
+        function handleInfiniteScroll() {
+            // Disable infinite scroll during search
+            if (isSearchMode || isLoading || !hasMoreItems) {
+                return;
+            }
+
+            const scrollTop = $(window).scrollTop();
+            const windowHeight = $(window).height();
+            const documentHeight = $(document).height();
+
+            // Load more when 300px from bottom
+            if (scrollTop + windowHeight >= documentHeight - 300) {
+                loadMoreItems();
+            }
+        }
+
+        function resetLoadingState() {
+            isLoading = false;
+            hasMoreItems = true;
+            currentOffset = 0;
+            totalItems = 0;
+            loadedItems = 0;
+        }
+
+        function updateItemsCounter() {
+            const counter = $('#itemsCounter');
+            if (totalItems > 0) {
+                counter.text(`${loadedItems} of ${totalItems} items`);
+                counter.show();
+            } else {
+                counter.hide();
+            }
+        }
+
+        function toggleLoadMoreButton() {
+            const container = $('#loadMoreContainer');
+            const button = $('#loadMoreButton');
+
+            if (hasMoreItems) {
+                container.show();
+                button.html('<i class="fas fa-plus mr-2"></i>Load More');
+            } else if (loadedItems > 0) {
+                container.show();
+                button.html('<i class="fas fa-check mr-2"></i>All items loaded').prop('disabled', true);
+            } else {
+                container.hide();
+            }
+        }
+
+        function showLoadMoreSpinner() {
+            $('#loadMoreSpinner').show();
+            $('#loadMoreButton').prop('disabled', true);
+        }
+
+        function hideLoadMoreSpinner() {
+            $('#loadMoreSpinner').hide();
+            $('#loadMoreButton').prop('disabled', false);
+        }
+
+        function loadMoreManual() {
+            loadMoreItems();
+        }
+
+        function updateBreadcrumb(breadcrumb, currentFolder) {
+            const breadcrumbEl = $('#breadcrumb');
+            breadcrumbEl.html(`
+                <li class="breadcrumb-item">
+                    <a href="#" onclick="navigateToFolder(null)">
+                        <i class="fas fa-home mr-1"></i>Root
+                    </a>
+                </li>
+            `);
+
+            if (breadcrumb && breadcrumb.length > 0) {
+                breadcrumb.forEach(function(item, index) {
+                    const isLast = index === breadcrumb.length - 1;
+                    if (isLast) {
+                        breadcrumbEl.append(`
+                        <li class="breadcrumb-item active">
+                            <i class="fas fa-folder mr-1"></i>${item.name}
+                        </li>
+                    `);
+                    } else {
+                        breadcrumbEl.append(`
+                        <li class="breadcrumb-item">
+                            <a href="#" onclick="navigateToFolder(${item.id})">
+                                <i class="fas fa-folder mr-1"></i>${item.name}
+                            </a>
+                        </li>
+                    `);
+                    }
+                });
+            }
+        }
+
+        function renderContent(folders, documents) {
+            const contentArea = $('#contentArea');
+            const emptyState = $('#emptyState');
+
+            console.log('Rendering content:', folders.length, 'folders,', documents.length, 'documents');
+
+            if (folders.length === 0 && documents.length === 0) {
+                contentArea.hide();
+                emptyState.show();
+                return;
+            }
+
+            contentArea.show();
+            emptyState.hide();
+            contentArea.html(''); // Clear existing content
+
+            // Render folders first
+            if (folders && folders.length > 0) {
+                folders.forEach(folder => {
+                    console.log('Rendering folder:', folder.name);
+                    const folderHtml = viewMode === 'grid' ? renderFolderGrid(folder) : renderFolderList(folder);
+                    contentArea.append(folderHtml);
+                });
+            }
+
+            // Render documents
+            if (documents && documents.length > 0) {
+                documents.forEach(document => {
+                    console.log('Rendering document:', document.name);
+                    const documentHtml = viewMode === 'grid' ? renderDocumentGrid(document) : renderDocumentList(
+                        document);
+                    contentArea.append(documentHtml);
+                });
+            }
+
+            console.log('Content rendered, total items in DOM:', contentArea.children().length);
+        }
+
+        function renderFolderGrid(folder) {
+            return `
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+                <div class="folder-item text-center" onclick="navigateToFolder(${folder.id})">
+                    <div class="folder-actions position-absolute" style="top: 10px; right: 10px;">
+                        <button class="btn btn-sm btn-danger btn-circle"
+                                onclick="event.stopPropagation(); deleteFolder(${folder.id})"
+                                title="Hapus Folder">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <i class="fas fa-folder folder-icon"></i>
+                    <div class="folder-name">${folder.name}</div>
+                    <div class="folder-info">
+                        <small>
+                            <i class="fas fa-folder mr-1"></i>${folder.subfolders_count} folder
+                            <br>
+                            <i class="fas fa-file mr-1"></i>${folder.documents_count} file
+                        </small>
+                    </div>
+                    <div class="folder-info mt-1">
+                        <small class="text-muted">${folder.created_at}</small>
+                    </div>
+                </div>
+            </div>
+        `;
+        }
+
+        function renderFolderList(folder) {
+            return `
+                <div class="col-12">
+                    <div class="folder-item d-flex align-items-center" onclick="navigateToFolder(${folder.id})">
+                        <i class="fas fa-folder text-warning mr-3" style="font-size: 1.5rem;"></i>
+                        <div class="flex-grow-1">
+                            <div class="folder-name mb-1">${folder.name}</div>
+                            <div class="folder-info">
+                                <small class="text-muted">${folder.description || 'Tidak ada deskripsi'}</small>
+                            </div>
+                        </div>
+                        <div class="text-right mr-3">
+                            <small class="text-muted d-block">${folder.subfolders_count} folder, ${folder.documents_count} file</small>
+                            <small class="text-muted">${folder.created_at}</small>
+                        </div>
+                        <div class="folder-actions">
+                            <button class="btn btn-sm btn-danger"
+                                    onclick="event.stopPropagation(); deleteFolder(${folder.id})"
+                                    title="Hapus Folder">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDocumentGrid(document) {
+            const icon = getFileIcon(document.extension);
+            return `
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+                    <div class="file-item text-center position-relative" onclick="downloadDocument(${document.id})">
+                        <!-- Action buttons -->
+                        <div class="document-actions position-absolute" style="top: 10px; right: 10px;">
+                            <button class="btn btn-sm btn-info btn-circle mr-1"
+                                    onclick="event.stopPropagation(); shareDocument(${document.id})"
+                                    title="Share Dokumen">
+                                <i class="fas fa-share"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger btn-circle"
+                                    onclick="event.stopPropagation(); deleteDocument(${document.id})"
+                                    title="Hapus Dokumen">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+
+                        <i class="${icon} file-icon" style="font-size: 2rem;"></i>
+                        <div class="folder-name" style="font-size: 0.9rem;">${document.name}</div>
+                        <div class="folder-info">
+                            <small class="text-muted">
+                                ${formatFileSize(document.file_size)}
+                                <br>
+                                ${document.created_at}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDocumentList(document) {
+            const icon = getFileIcon(document.extension);
+            return `
+                <div class="col-12">
+                    <div class="file-item d-flex align-items-center" onclick="downloadDocument(${document.id})">
+                        <i class="${icon} mr-3" style="font-size: 1.5rem;"></i>
+                        <div class="flex-grow-1">
+                            <div class="folder-name mb-1" style="font-weight: 500;">${document.name}</div>
+                            <div class="folder-info">
+                                <small class="text-muted">${document.original_name}</small>
+                            </div>
+                        </div>
+                        <div class="text-right mr-3">
+                            <small class="text-muted d-block">${formatFileSize(document.file_size)}</small>
+                            <small class="text-muted">${document.created_at}</small>
+                        </div>
+                        <div class="document-actions">
+                            <button class="btn btn-sm btn-info mr-1"
+                                    onclick="event.stopPropagation(); shareDocument(${document.id})"
+                                    title="Share Dokumen">
+                                <i class="fas fa-share"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger"
+                                    onclick="event.stopPropagation(); deleteDocument(${document.id})"
+                                    title="Hapus Dokumen">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function navigateToFolder(folderId) {
+            // Clear search when navigating
+            if (isSearchMode) {
+                $('#searchInput').val('');
+                isSearchMode = false;
+            }
+            loadFolderContent(folderId);
+        }
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            $('.btn-group button').removeClass('active');
+            $(`.btn-group button[onclick="setViewMode('${mode}')"]`).addClass('active');
+            // Re-render existing content with new view mode
+            const contentArea = $('#contentArea');
+            const existingItems = [];
+
+            // Extract existing data (you might want to store this in a variable)
+            contentArea.children().each(function() {
+                // This is a simplified approach - in real implementation,
+                // you'd want to store the original data
+                existingItems.push($(this).html());
+            });
+
+            // For now, just reload the current folder
+            loadFolderContent(currentFolderId);
+        }
+
+        function showCreateFolderModal() {
+            $('#createFolderModal').modal('show');
+        }
+
+        function showUploadModal() {
+            if (currentFolderId === null) {
+                showAlert('warning', 'Pilih folder terlebih dahulu untuk mengupload file');
+                return;
+            }
+            $('#uploadModal').modal('show');
+        }
+
+        function loadUnits() {
+            $.get('{{ route('folders.units') }}')
+                .done(function(units) {
+                    const select = $('#folderUnit');
+                    select.html('<option value="">-- Pilih Unit --</option>');
+                    units.forEach(function(unit) {
+                        select.append(`<option value="${unit.id}">${unit.name}</option>`);
+                    });
+                });
+        }
+
+        function createFolder() {
+            const name = $('#folderName').val().trim();
+            const description = $('#folderDescription').val().trim();
+            const unitId = $('#folderUnit').val();
+
+            if (!name) {
+                showAlert('warning', 'Nama folder harus diisi!');
+                return;
+            }
+
+            const data = {
+                name: name,
+                description: description,
+                parent_id: currentFolderId,
+                unit_id: unitId || null,
+                _token: '{{ csrf_token() }}'
+            };
+
+            $.post('{{ route('folders.store') }}', data)
+                .done(function(response) {
+                    if (response.success) {
+                        $('#createFolderModal').modal('hide');
+                        $('#createFolderForm')[0].reset();
+                        showAlert('success', response.message);
+                        loadFolderContent(currentFolderId);
+                    } else {
+                        showAlert('error', response.message);
+                    }
+                })
+                .fail(function(xhr) {
+                    const message = xhr.responseJSON?.message || 'Gagal membuat folder';
+                    showAlert('error', message);
+                });
+        }
+
+        function uploadFiles() {
+            const files = $('#fileInput')[0].files;
+            const description = $('#fileDescription').val().trim();
+            const isLatterChecked = $('#is_latter').is(':checked');
+
+            console.log('Upload started with:');
+            console.log('- Files count:', files.length);
+            console.log('- Description:', description);
+            console.log('- Is Latter:', isLatterChecked);
+            console.log('- Current Folder ID:', currentFolderId);
+
+            if (files.length === 0) {
+                showAlert('warning', 'Pilih minimal satu file!');
+                return;
+            }
+
+            if (!currentFolderId) {
+                showAlert('warning', 'Pilih folder tujuan terlebih dahulu!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('folder_id', currentFolderId);
+            formData.append('description', description);
+            formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                '{{ csrf_token() }}');
+
+            // Penting: Kirim sebagai string, bukan boolean
+            formData.append('is_latter', isLatterChecked ? '1' : '0');
+
+            // Tambahkan files
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files[]', files[i]);
+            }
+
+            // Debug FormData
+            console.log('FormData entries:');
+            for (let [key, value] of formData.entries()) {
+                if (value instanceof File) {
+                    console.log(`${key}: File - ${value.name}`);
+                } else {
+                    console.log(`${key}: ${value}`);
+                }
+            }
+
+            // Show progress
+            $('#uploadProgress').show();
+            $('#uploadBtn').prop('disabled', true);
+            $('.modal-footer .btn-secondary').prop('disabled', true);
+
+            $.ajax({
+                    url: '{{ route('documents.store') }}',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    xhr: function() {
+                        var xhr = new window.XMLHttpRequest();
+                        xhr.upload.addEventListener("progress", function(evt) {
+                            if (evt.lengthComputable) {
+                                var percentComplete = Math.round((evt.loaded / evt.total) * 100);
+                                $('.progress-bar').css('width', percentComplete + '%');
+                                $('.progress-bar').text(percentComplete + '%');
+                                $('#uploadStatus').text(`Uploading... ${percentComplete}%`);
+                            }
+                        }, false);
+                        return xhr;
+                    }
+                })
+                .done(function(response) {
+                    console.log('Upload response:', response);
+
+                    if (response.success) {
+                        $('#uploadModal').modal('hide');
+                        showAlert('success', response.message || 'File berhasil diupload');
+                        loadFolderContent(currentFolderId);
+
+                        // Log untuk debugging
+                        if (response.data && response.data.length > 0) {
+                            console.log('Uploaded documents is_latter values:');
+                            response.data.forEach(doc => {
+                                console.log(`${doc.name}: is_latter = ${doc.is_latter}`);
+                            });
+                        }
+                    } else {
+                        showAlert('error', response.message || 'Gagal mengupload file');
+                        if (response.errors && response.errors.length > 0) {
+                            response.errors.forEach(error => {
+                                showAlert('warning', error);
+                            });
+                        }
+                    }
+                })
+                .fail(function(xhr) {
+                    console.error('Upload failed:', xhr);
+                    let message = 'Gagal mengupload file';
+
+                    if (xhr.responseJSON) {
+                        message = xhr.responseJSON.message || message;
+                        if (xhr.responseJSON.errors) {
+                            console.error('Validation errors:', xhr.responseJSON.errors);
+                        }
+                    }
+
+                    showAlert('error', message);
+                })
+                .always(function() {
+                    // Reset progress
+                    $('#uploadProgress').hide();
+                    $('#uploadBtn').prop('disabled', false);
+                    $('.modal-footer .btn-secondary').prop('disabled', false);
+                    $('.progress-bar').css('width', '0%');
+                    $('.progress-bar').text('');
+                    $('#uploadStatus').text('Uploading...');
+                });
+        }
+
+        function downloadDocument(documentId) {
+            window.location.href = `{{ route('documents.download', ':id') }}`.replace(':id', documentId);
+        }
+
+        function performSearch(searchTerm) {
+            const trimmedTerm = searchTerm.trim();
+
+            if (!trimmedTerm) {
+                // Clear search mode and reload normal content
+                isSearchMode = false;
+                loadFolderContent(currentFolderId);
+                return;
+            }
+
+            // Enter search mode
+            isSearchMode = true;
+            resetLoadingState();
+
+            // Hide load more button during search
+            $('#loadMoreContainer').hide();
+
+            // Show loading
+            showLoading();
+
+            $.get('{{ route('folders.search') }}', {
+                    q: trimmedTerm
+                })
+                .done(function(response) {
+                    console.log('Search results:', response);
+                    renderSearchResults(response.folders, response.documents, trimmedTerm);
+                    hideLoading();
+                })
+                .fail(function() {
+                    showAlert('error', 'Gagal melakukan pencarian');
+                    hideLoading();
+                });
+        }
+
+        function renderSearchResults(folders, documents, searchTerm) {
+            const contentArea = $('#contentArea');
+            const emptyState = $('#emptyState');
+
+            // Clear content
+            contentArea.html('');
+
+            const totalResults = folders.length + documents.length;
+
+            if (totalResults === 0) {
+                // Show search empty state
+                contentArea.html(`
+                <div class="col-12 text-center py-5">
+                    <i class="fas fa-search" style="font-size: 3rem; color: #6c757d;"></i>
+                    <h5 class="mt-3">Tidak ada hasil ditemukan</h5>
+                    <p class="text-muted">Tidak ada folder atau file yang cocok dengan "<strong>${searchTerm}</strong>"</p>
+                    <button class="btn btn-outline-primary" onclick="clearSearch()">
+                        <i class="fas fa-arrow-left mr-1"></i>Kembali ke folder
+                    </button>
+                </div>
+            `);
+                contentArea.show();
+                emptyState.hide();
+                return;
+            }
+
+            // Show search results header
+            contentArea.append(`
+                <div class="col-12 mb-3">
+                    <div class="alert alert-info d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-search mr-2"></i>
+                            Hasil pencarian untuk "<strong>${searchTerm}</strong>": ${totalResults} item ditemukan
+                        </div>
+                        <button class="btn btn-sm btn-outline-info" onclick="clearSearch()">
+                            <i class="fas fa-times mr-1"></i>Tutup Pencarian
+                        </button>
+                    </div>
+                </div>
+            `);
+
+            contentArea.show();
+            emptyState.hide();
+
+            // Render folders with search highlight
+            folders.forEach(folder => {
+                const folderHtml = renderSearchFolder(folder, searchTerm);
+                contentArea.append(folderHtml);
+            });
+
+            // Render documents with search highlight
+            documents.forEach(document => {
+                const documentHtml = renderSearchDocument(document, searchTerm);
+                contentArea.append(documentHtml);
+            });
+
+            // Update counter for search results
+            $('#itemsCounter').text(`${totalResults} search results`).show();
+        }
+
+        function renderSearchFolder(folder, searchTerm) {
+            const highlightedName = highlightSearchTerm(folder.name, searchTerm);
+            const highlightedDesc = folder.description ? highlightSearchTerm(folder.description, searchTerm) :
+                'Tidak ada deskripsi';
+
+            return `
+                <div class="col-12 mb-2">
+                    <div class="folder-item d-flex align-items-center" onclick="navigateToFolder(${folder.id})">
+                        <i class="fas fa-folder text-warning mr-3" style="font-size: 1.5rem;"></i>
+                        <div class="flex-grow-1">
+                            <div class="folder-name mb-1">${highlightedName}</div>
+                            <div class="folder-info">
+                                <small class="text-muted">${highlightedDesc}</small>
+                                <br>
+                                <small class="text-info">
+                                    <i class="fas fa-map-marker-alt mr-1"></i>
+                                    Path: ${folder.path || 'Root'}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="badge badge-primary">Folder</span>
+                            <br>
+                            <small class="text-muted">${folder.created_at || ''}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSearchDocument(document, searchTerm) {
+            const icon = getFileIcon(document.original_name || document.name);
+            const highlightedName = highlightSearchTerm(document.name, searchTerm);
+            const highlightedOriginal = document.original_name ? highlightSearchTerm(document.original_name, searchTerm) :
+                '';
+
+            return `
+                <div class="col-12 mb-2">
+                    <div class="file-item d-flex align-items-center" onclick="downloadDocument(${document.id})">
+                        <i class="${icon} mr-3" style="font-size: 1.5rem;"></i>
+                        <div class="flex-grow-1">
+                            <div class="folder-name mb-1" style="font-weight: 500;">${highlightedName}</div>
+                            <div class="folder-info">
+                                ${highlightedOriginal ? `<small class="text-muted">${highlightedOriginal}</small><br>` : ''}
+                                <small class="text-info">
+                                    <i class="fas fa-folder mr-1"></i>
+                                    Folder: ${document.folder_name || 'Unknown'}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="badge badge-success">Dokumen</span>
+                            <br>
+                            <small class="text-muted">${document.created_at || ''}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function highlightSearchTerm(text, searchTerm) {
+            if (!text || !searchTerm) return text;
+
+            const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+            return text.replace(regex, '<mark class="bg-warning">$1</mark>');
+        }
+
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function clearSearch() {
+            const searchInput = $('#searchInput');
+            const searchContainer = $('.search-input-container');
+            const searchIcon = $('#searchIcon');
+
+            searchInput.val('');
+            searchContainer.removeClass('has-content');
+            searchIcon.removeClass('text-primary');
+
+            // Clear search mode and reload
+            isSearchMode = false;
+            loadFolderContent(currentFolderId);
+
+            // Focus back to input
+            searchInput.focus();
+        }
+
+        function showLoading() {
+            $('#loadingSpinner').show();
+            $('#contentArea').hide();
+            $('#emptyState').hide();
+        }
+
+        function hideLoading() {
+            $('#loadingSpinner').hide();
+        }
+
+        function showAlert(type, message) {
+            const alertClass = {
+                'success': 'alert-success',
+                'error': 'alert-danger',
+                'warning': 'alert-warning',
+                'info': 'alert-info'
+            };
+
+            const alert = $(`
+            <div class="alert ${alertClass[type]} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        `);
+
+            $('.section-body').prepend(alert);
+
+            setTimeout(() => {
+                alert.fadeOut();
+            }, 5000);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function getFileIcon(filename) {
+            const extension = filename.split('.').pop().toLowerCase();
+            const iconMap = {
+                'pdf': 'fas fa-file-pdf text-danger',
+                'doc': 'fas fa-file-word text-primary',
+                'docx': 'fas fa-file-word text-primary',
+                'xls': 'fas fa-file-excel text-success',
+                'xlsx': 'fas fa-file-excel text-success',
+                'ppt': 'fas fa-file-powerpoint text-warning',
+                'pptx': 'fas fa-file-powerpoint text-warning',
+                'jpg': 'fas fa-file-image text-info',
+                'jpeg': 'fas fa-file-image text-info',
+                'png': 'fas fa-file-image text-info',
+                'gif': 'fas fa-file-image text-info',
+                'zip': 'fas fa-file-archive text-secondary',
+                'rar': 'fas fa-file-archive text-secondary',
+                'txt': 'fas fa-file-alt text-secondary',
+                'default': 'fas fa-file text-secondary'
+            };
+
+            return iconMap[extension] || iconMap['default'];
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function throttle(func, limit) {
+            let inThrottle;
+            return function() {
+                const args = arguments;
+                const context = this;
+                if (!inThrottle) {
+                    func.apply(context, args);
+                    inThrottle = true;
+                    setTimeout(() => inThrottle = false, limit);
+                }
+            }
+        }
+
+        // Function untuk menghapus folder
+        function deleteFolder(folderId) {
+            if (!confirm(
+                    'Apakah Anda yakin ingin menghapus folder ini? Semua file dan subfolder di dalamnya akan ikut terhapus.'
+                )) {
+                return;
+            }
+
+            $.ajax({
+                url: `{{ url('folders') }}/${folderId}`,
+                type: 'DELETE',
+                data: {
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showAlert('success', response.message);
+                        loadFolderContent(currentFolderId); // Reload current folder
+                    } else {
+                        showAlert('error', response.message);
+                    }
+                },
+                error: function(xhr) {
+                    const message = xhr.responseJSON?.message || 'Gagal menghapus folder';
+                    showAlert('error', message);
+                }
+            });
+        }
+
+        // Function untuk menghapus document
+        function deleteDocument(documentId) {
+            if (!confirm('Apakah Anda yakin ingin menghapus dokumen ini?')) {
+                return;
+            }
+
+            $.ajax({
+                url: `{{ url('documents') }}/${documentId}`,
+                type: 'DELETE',
+                data: {
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showAlert('success', response.message);
+                        loadFolderContent(currentFolderId); // Reload current folder
+                    } else {
+                        showAlert('error', response.message);
+                    }
+                },
+                error: function(xhr) {
+                    const message = xhr.responseJSON?.message || 'Gagal menghapus dokumen';
+                    showAlert('error', message);
+                }
+            });
+        }
+
+        // Function untuk share document
+        function shareDocument(documentId) {
+            // Implementasi share document - bisa berupa modal atau langsung copy link
+            const shareUrl = `{{ url('documents/share') }}/${documentId}`;
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(shareUrl).then(function() {
+                showAlert('success', 'Link dokumen berhasil disalin ke clipboard');
+            }).catch(function() {
+                // Fallback untuk browser yang tidak support clipboard API
+                showShareModal(documentId, shareUrl);
+            });
+        }
+
+        // Modal untuk share jika clipboard API tidak tersedia
+        function showShareModal(documentId, shareUrl) {
+            const modalHtml = `
+                <div class="modal fade" id="shareModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Share Dokumen</h5>
+                                <button type="button" class="close" data-dismiss="modal">
+                                    <span>&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label>Link Dokumen:</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" value="${shareUrl}" id="shareUrlInput" readonly>
+                                        <div class="input-group-append">
+                                            <button class="btn btn-outline-secondary" onclick="copyShareUrl()" type="button">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            $('#shareModal').remove();
+
+            // Add modal to body
+            $('body').append(modalHtml);
+
+            // Show modal
+            $('#shareModal').modal('show');
+
+            // Remove modal after hide
+            $('#shareModal').on('hidden.bs.modal', function() {
+                $(this).remove();
+            });
+        }
+    </script>
+@endpush
+
+@push('styles')
+    <style>
+        /* Action buttons styling */
+        .folder-actions,
+        .document-actions {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .folder-item:hover .folder-actions,
+        .file-item:hover .document-actions {
+            opacity: 1;
+        }
+
+        .btn-circle {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            font-size: 0.8rem;
+        }
+
+        /* Untuk grid view - position absolute buttons */
+        .folder-item .folder-actions,
+        .file-item .document-actions {
+            z-index: 10;
+        }
+
+        /* Untuk list view - flex buttons */
+        .folder-item .folder-actions .btn,
+        .file-item .document-actions .btn {
+            margin-left: 5px;
+        }
+
+        .folder-item {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 5px;
+            border: 1px solid #e3e6f0;
+            background: white;
+        }
+
+        .folder-item:hover {
+            background-color: #f8f9fc;
+            border-color: #5a5c69;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-item {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 3px;
+            border: 1px solid #e3e6f0;
+            background: white;
+        }
+
+        .file-item:hover {
+            background-color: #f8f9fc;
+            border-color: #5a5c69;
+        }
+
+        .folder-icon {
+            font-size: 3rem;
+            color: #ffc107;
+        }
+
+        .file-icon {
+            font-size: 1.5rem;
+            color: #6c757d;
+        }
+
+        .folder-name {
+            font-weight: 600;
+            color: #5a5c69;
+            margin-top: 10px;
+        }
+
+        .folder-info {
+            font-size: 0.8rem;
+            color: #858796;
+        }
+
+        .breadcrumb {
+            background-color: #fff;
+        }
+
+        /* Search highlight styling */
+        mark.bg-warning {
+            background-color: #fff3cd !important;
+            padding: 1px 2px;
+            border-radius: 2px;
+            font-weight: 600;
+        }
+
+        /* Search mode indicators */
+        .search-active {
+            border-left: 3px solid #007bff !important;
+            background-color: #f8f9fc !important;
+        }
+
+        /* Search input focus state */
+        #searchInput:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+        /* Search results styling */
+        .search-result-item {
+            transition: all 0.2s ease;
+            border-radius: 8px;
+        }
+
+        .search-result-item:hover {
+            background-color: #e3f2fd !important;
+            transform: translateX(5px);
+        }
+
+        /* Clear search button */
+        .clear-search-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            display: none;
+        }
+
+        .clear-search-btn:hover {
+            color: #dc3545;
+        }
+
+        /* Search input container */
+        .search-input-container {
+            position: relative;
+        }
+
+        .search-input-container.has-content .clear-search-btn {
+            display: block;
+        }
+    </style>
+@endpush
