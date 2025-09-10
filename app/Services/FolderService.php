@@ -15,10 +15,22 @@ class FolderService
         $folder->slug = Str::slug($data['name']);
         $folder->description = $data['description'];
         $folder->parent_id = $data['parent_id'];
-        $folder->category_id = $data['category_id'];
         $folder->created_by = $creator->id;
         $folder->updated_by = $creator->id;
+
+        // Set default path dan level untuk menghindari NOT NULL constraint
+        if ($folder->parent_id) {
+            $parent = Folder::find($folder->parent_id);
+            $folder->level = $parent ? $parent->level + 1 : 0;
+            // Temporary path yang akan diupdate setelah save
+            $folder->path = $parent ? $parent->path . '/temp' : '/temp';
+        } else {
+            $folder->level = 0;
+            $folder->path = '/temp';
+        }
+
         $folder->save();
+        $folder->updatePath();
 
         return $folder;
     }

@@ -89,7 +89,7 @@
                             {{-- <li class="{{ request()->routeIs('permission*') ? 'active' : '' }}"><a class="nav-link"
                                     href="{{ route('permission.index') }}"><i class="fas fa-key"></i>
                                     <span>Permission</span></a></li> --}}
-                            <li class="{{ request()->routeIs('unit*') ? 'active' : '' }}"><a class="nav-link"
+                            <li class="{{ request()->routeIs('units*') ? 'active' : '' }}"><a class="nav-link"
                                     href="{{ route('units.index') }}"><i class="fas fa-building"></i>
                                     <span>Unit</span></a></li>
                             <li class="{{ request()->routeIs('document-categories*') ? 'active' : '' }}"><a

@@ -19,7 +19,7 @@ return new class extends Migration
             $table->foreignId('parent_id')->nullable()->constrained('folders')->onDelete('cascade');
             $table->string('path')->nullable()->comment('Full path for optimization');
             $table->integer('level')->default(0);
-            $table->foreignId('category_id')->nullable()->constrained('document_categories')->onDelete('set null');
+            // $table->foreignId('category_id')->nullable()->constrained('document_categories')->onDelete('set null');
             $table->string('color', 7)->default('#F59E0B');
             $table->string('icon', 100)->nullable();
             $table->boolean('is_active')->default(true);

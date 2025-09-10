@@ -45,7 +45,7 @@
                                     </div>
                                     <input type="text" class="form-control" placeholder="Cari folder atau file..."
                                         id="searchInput" autocomplete="off">
-                                    <button type="button" class="clear-search-btn" onclick="clearSearch()"
+                                    <button type="button" class="clear-search-btn-search" onclick="clearSearch()"
                                         title="Clear search">
                                         <i class="fas fa-times"></i>
                                     </button>
@@ -161,7 +161,7 @@
 
     <!-- Modal Create Folder -->
     <div class="modal fade" id="createFolderModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Buat Folder Baru</h5>
@@ -179,11 +179,29 @@
                             <label>Deskripsi</label>
                             <textarea class="form-control" id="folderDescription" rows="3"></textarea>
                         </div>
+
+                        <h6 class="mb-3">Permissions Folder</h6>
+
                         <div class="form-group">
                             <label>Unit</label>
-                            <select class="form-control" id="folderUnit">
-                                <option value="">-- Pilih Unit --</option>
+                            <select class="form-control select2" id="folderUnit" multiple>
                             </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Role</label>
+                            <select class="form-control select2" id="folderRole" multiple>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Jenis Permission</label>
+                            <select class="form-control select2" id="folderPermissionTypes" multiple>
+                                <option value="read">Read - Hanya bisa melihat</option>
+                                <option value="write">Write - Bisa melihat dan menambah</option>
+                                <option value="download">Download - Bisa mendownload file</option>
+                                <option value="delete">Delete - Bisa menghapus</option>
+                            </select>
+                            <small class="form-text text-muted">Pilih level akses untuk unit/role/user yang dipilih (bisa
+                                pilih lebih dari satu)</small>
                         </div>
                     </form>
                 </div>
@@ -217,6 +235,16 @@
                                 <label class="custom-file-label" for="fileInput">Pilih file...</label>
                             </div>
                             <small class="form-text text-muted">Maksimal ukuran file 10MB per file</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Kategori</label>
+                            <select class="form-control select2" id="category">
+                                @foreach ($categories as $category)
+                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                            <small class="form-text text-muted">Pilih kategori dokumen</small>
                         </div>
 
                         <div class="form-group">
@@ -299,9 +327,6 @@
             // Setup infinite scroll
             $(window).on('scroll', throttle(handleInfiniteScroll, 150));
 
-            // Load units for folder creation
-            loadUnits();
-
             // Setup search
             $('#searchInput').on('keyup', debounce(() => {
                 performSearch($('#searchInput').val());
@@ -319,7 +344,7 @@
 
             const searchInput = $('#searchInput');
             const searchContainer = $('.search-input-container');
-            const clearBtn = $('.clear-search-btn');
+            const clearBtn = $('.clear-search-btn-search');
             const searchIcon = $('#searchIcon');
 
             // Show/hide clear button
@@ -365,6 +390,11 @@
                 $('.progress-bar').css('width', '0%');
                 $('#uploadStatus').text('Uploading...');
             });
+
+            $('#createFolderModal').on('shown.bs.modal', function() {
+                loadMasterData();
+                // $('#folderPermissionTypes').val(['read']).trigger('change'); // Set default
+            });
         });
     </script>
 
@@ -378,14 +408,14 @@
                 `{{ url('folders/browse') }}/${folderId}` :
                 `{{ url('folders/browse') }}`;
 
-            console.log('Loading folder:', folderId, 'URL:', url);
+            // console.log('Loading folder:', folderId, 'URL:', url);
 
             $.get(url, {
                     offset: 0,
                     limit: itemsPerLoad
                 })
                 .done(function(response) {
-                    console.log('Response received:', response);
+                    // console.log('Response received:', response);
 
                     updateBreadcrumb(response.breadcrumb, response.current_folder);
 
@@ -394,7 +424,7 @@
 
                     // Check if we have any data
                     if (response.folders.length === 0 && response.documents.length === 0) {
-                        console.log('No data found, showing empty state');
+                        // console.log('No data found, showing empty state');
                         $('#contentArea').hide();
                         $('#emptyState').show();
                     } else {
@@ -568,6 +598,7 @@
 
         function updateBreadcrumb(breadcrumb, currentFolder) {
             const breadcrumbEl = $('#breadcrumb');
+
             breadcrumbEl.html(`
                 <li class="breadcrumb-item">
                     <a href="#" onclick="navigateToFolder(null)">
@@ -797,40 +828,149 @@
             $('#uploadModal').modal('show');
         }
 
-        function loadUnits() {
-            $.get('{{ route('folders.units') }}')
+        function loadMasterData() {
+            // slect unit
+            $.get('{{ route('folders.get-units') }}')
                 .done(function(units) {
-                    const select = $('#folderUnit');
-                    select.html('<option value="">-- Pilih Unit --</option>');
+                    const selectUnit = $('#folderUnit');
+                    // Simpan nilai yang dipilih sebelumnya
+                    const selectedUnitValue = selectUnit.val();
+                    selectUnit.html('<option value="">-- Pilih Unit --</option>');
                     units.forEach(function(unit) {
-                        select.append(`<option value="${unit.id}">${unit.name}</option>`);
+                        selectUnit.append(`<option value="${unit.id}">${unit.name}</option>`);
                     });
+
+                    // Set nilai yang dipilih sebelumnya jika masih ada
+                    if (selectedUnitValue) {
+                        selectUnit.val(selectedUnitValue).trigger('change');
+                    }
+
+                    // Refresh Select2 untuk menampilkan data baru
+                    selectUnit.trigger('change.select2');
+                });
+
+            // select roles
+            $.get('{{ route('folders.get-roles') }}')
+                .done(function(roles) {
+                    const selectRole = $('#folderRole');
+
+                    // Simpan nilai yang dipilih sebelumnya
+                    const selectedRoleValue = selectRole.val();
+
+                    selectRole.html('<option value="">-- Pilih Role --</option>');
+                    roles.forEach(function(role) {
+                        selectRole.append(`<option value="${role.id}">${role.name}</option>`);
+                    });
+
+                    // Set nilai yang dipilih sebelumnya jika masih ada
+                    if (selectedRoleValue) {
+                        selectRole.val(selectedRoleValue).trigger('change');
+                    }
+
+                    // Refresh Select2 untuk menampilkan data baru
+                    selectRole.trigger('change.select2');
+                });
+
+            // Select usres
+            $.get('{{ route('folders.get-users') }}')
+                .done(function(users) {
+                    const selectUser = $('#folderUser');
+
+                    // Simpan nilai yang dipilih sebelumnya
+                    const selectedUserValue = selectUser.val();
+
+                    selectUser.html('<option value="">-- Pilih User --</option>');
+                    users.forEach(function(user) {
+                        selectUser.append(`<option value="${user.id}">${user.display_name}</option>`);
+                    });
+
+                    // Set nilai yang dipilih sebelumnya jika masih ada
+                    if (selectedUserValue) {
+                        selectUser.val(selectedUserValue).trigger('change');
+                    }
+
+                    // Refresh Select2 untuk menampilkan data baru
+                    selectUser.trigger('change.select2');
                 });
         }
+
+        // function createFolder() {
+        //     const name = $('#folderName').val().trim();
+        //     const description = $('#folderDescription').val().trim();
+        //     const unitId = $('#folderUnit').val();
+
+        //     if (!name) {
+        //         showAlert('warning', 'Nama folder harus diisi!');
+        //         return;
+        //     }
+
+        //     const data = {
+        //         name: name,
+        //         description: description,
+        //         parent_id: currentFolderId,
+        //         unit_id: unitId || null,
+        //         _token: '{{ csrf_token() }}'
+        //     };
+
+        //     $.post('{{ route('folders.store') }}', data)
+        //         .done(function(response) {
+        //             if (response.success) {
+        //                 $('#createFolderModal').modal('hide');
+        //                 $('#createFolderForm')[0].reset();
+        //                 showAlert('success', response.message);
+        //                 loadFolderContent(currentFolderId);
+        //             } else {
+        //                 showAlert('error', response.message);
+        //             }
+        //         })
+        //         .fail(function(xhr) {
+        //             const message = xhr.responseJSON?.message || 'Gagal membuat folder';
+        //             showAlert('error', message);
+        //         });
+        // }
 
         function createFolder() {
             const name = $('#folderName').val().trim();
             const description = $('#folderDescription').val().trim();
-            const unitId = $('#folderUnit').val();
+            const units = $('#folderUnits').val(); // Array of unit IDs
+            const roles = $('#folderRoles').val(); // Array of role IDs
+            const users = $('#folderUsers').val(); // Array of user IDs
+            const permissionType = $('#folderPermissionType').val();
 
             if (!name) {
                 showAlert('warning', 'Nama folder harus diisi!');
                 return;
             }
 
+            // Validate permission type if any permissions are set
+            if (currentFolderId) {
+                if ((units && units.length > 0) || (roles && roles.length > 0) || (users && users.length > 0)) {
+                    if (!permissionType) {
+                        showAlert('warning', 'Jenis permission harus dipilih!');
+                        return;
+                    }
+                }
+            }
+
             const data = {
                 name: name,
                 description: description,
                 parent_id: currentFolderId,
-                unit_id: unitId || null,
-                _token: '{{ csrf_token() }}'
+                units: units,
+                roles: roles,
+                users: users,
+                permission_type: permissionType,
+                _token: $('meta[name="csrf-token"]').attr('content')
             };
 
-            $.post('{{ route('folders.store') }}', data)
+            $.post('/folders', data)
                 .done(function(response) {
                     if (response.success) {
                         $('#createFolderModal').modal('hide');
                         $('#createFolderForm')[0].reset();
+                        $('#folderUnits').val(null).trigger('change');
+                        $('#folderRoles').val(null).trigger('change');
+                        $('#folderUsers').val(null).trigger('change');
                         showAlert('success', response.message);
                         loadFolderContent(currentFolderId);
                     } else {
@@ -847,6 +987,7 @@
             const files = $('#fileInput')[0].files;
             const description = $('#fileDescription').val().trim();
             const isLatterChecked = $('#is_latter').is(':checked');
+            const category = $('#category').val();
 
             console.log('Upload started with:');
             console.log('- Files count:', files.length);
@@ -1482,7 +1623,7 @@
         }
 
         /* Clear search button */
-        .clear-search-btn {
+        .clear-search-btn-search {
             position: absolute;
             right: 10px;
             top: 50%;
@@ -1494,7 +1635,7 @@
             display: none;
         }
 
-        .clear-search-btn:hover {
+        .clear-search-btn-search:hover {
             color: #dc3545;
         }
 
@@ -1503,7 +1644,7 @@
             position: relative;
         }
 
-        .search-input-container.has-content .clear-search-btn {
+        .search-input-container.has-content .clear-search-btn-search {
             display: block;
         }
     </style>

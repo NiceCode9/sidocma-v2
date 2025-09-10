@@ -2,11 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DocumentCategory;
 use App\Models\Folder;
+use App\Models\Unit;
+use App\Models\User;
 use App\Services\FolderService;
 use App\Services\PermissionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 
 class FolderController extends Controller
 {
@@ -21,7 +26,8 @@ class FolderController extends Controller
 
     public function index()
     {
-        return view('folders.index')->render();
+        $categories = DocumentCategory::all();
+        return view('folders.index', compact('categories'));
     }
 
     public function browse(Request $request, Folder $folder = null)
@@ -38,7 +44,7 @@ class FolderController extends Controller
         // Get all accessible folders first
         $foldersQuery = $folder ? $folder->children() : Folder::rootFolders();
         $allFolders = $foldersQuery
-            ->with(['creator', 'unit'])
+            ->with(['creator'])
             ->active()
             ->get()
             ->filter(function ($folder) use ($user) {
@@ -60,7 +66,7 @@ class FolderController extends Controller
                 'id' => $folder->id,
                 'name' => $folder->name,
                 'description' => $folder->description,
-                'unit' => $folder->unit ? $folder->unit->name : null,
+                // 'unit' => $folder->unit ? $folder->unit->name : null,
                 'creator' => $folder->creator->name,
                 'created_at' => $folder->created_at->format('d M Y'),
                 'documents_count' => $folder->documents()->active()->count(),
@@ -75,8 +81,8 @@ class FolderController extends Controller
         $allDocuments->each(function ($document) use ($allItems) {
             $allItems->push([
                 'id' => $document->id,
-                'name' => $document->name,
-                'original_name' => $document->original_name,
+                'name' => $document->title,
+                'original_name' => $document->file_name,
                 'file_size' => $document->file_size,
                 'extension' => $document->extension,
                 'created_at' => $document->created_at->format('d M Y'),
@@ -126,5 +132,195 @@ class FolderController extends Controller
             'offset' => $offset,
             'limit' => $limit
         ]);
+    }
+
+    /**
+     * Create new folder
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'parent_id' => 'nullable|exists:folders,id',
+            'unit_id' => 'nullable|exists:units,id',
+            'units' => 'nullable|array',
+            'units.*' => 'nullable|exists:units,id',
+            'roles' => 'nullable|array',
+            'roles.*' => 'nullable|exists:roles,id',
+            'permission_type' => 'nullable|in:read,write,delete'
+        ]);
+
+        $user = Auth::user();
+
+        // Check permission to create folder
+        $parentFolder = $request->parent_id ? Folder::find($request->parent_id) : null;
+        if (!$this->permissionService->canCreateFolder($user, $parentFolder)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak memiliki izin untuk membuat folder'
+            ], 403);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Create folder
+            $folder = $this->folderService->createFolder([
+                'name' => $request->name,
+                'description' => $request->description,
+                'parent_id' => $request->parent_id,
+                'unit_id' => $request->unit_id ?? $user->unit_id
+            ], $user);
+
+            // Set permissions if provided
+            if ($request->has('units') || $request->has('roles') || $request->has('users')) {
+                $this->permissionService->setFolderPermissions($folder, [
+                    'units' => $request->units ?? [],
+                    'roles' => $request->roles ?? [],
+                    'users' => $request->users ?? [],
+                    'permission_types' => $request->permission_types ?? ['read']
+                ], $user);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Folder berhasil dibuat',
+                'folder' => [
+                    'id' => $folder->id,
+                    'name' => $folder->name,
+                    'description' => $folder->description,
+                    'creator' => $folder->creator->name,
+                    'created_at' => $folder->created_at->format('d M Y'),
+                    'documents_count' => 0,
+                    'subfolders_count' => 0,
+                    'total_size' => 0,
+                    'type' => 'folder'
+                ]
+            ]);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuat folder: ' . $e->getMessage()
+            ], 422);
+        }
+    }
+
+
+    /**
+     * Delete folder
+     */
+    public function destroy(Folder $folder)
+    {
+        $user = Auth::user();
+
+        if (!$this->permissionService->canAccessFolder($user, $folder, 'delete')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak memiliki izin untuk menghapus folder'
+            ], 403);
+        }
+
+        try {
+            DB::beginTransaction();
+            $this->folderService->deleteFolder($folder);
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Folder berhasil dihapus'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus folder: ' . $e->getMessage()
+            ], 422);
+        }
+    }
+
+    /**
+     * Search folders and documents
+     */
+    public function search(Request $request)
+    {
+        $query = $request->get('q', '');
+        $user = Auth::user();
+        $accessibleFolders = $this->permissionService->getAccessibleFolders($user);
+
+        if (!$query) {
+            return response()->json(['folders' => [], 'documents' => []]);
+        }
+
+        // Search folders
+        $folders = $accessibleFolders
+            ->filter(function ($folder) use ($query) {
+                return stripos($folder->name, $query) !== false;
+            })
+            ->take(10)
+            ->map(function ($folder) {
+                return [
+                    'id' => $folder->id,
+                    'name' => $folder->name,
+                    'description' => $folder->description,
+                    'type' => 'folder',
+                    'path' => $folder->getBreadcrumb()->pluck('name')->implode('/')
+                ];
+            });
+
+        // Search documents
+        $documents = $this->permissionService->getAccessibleDocuments($user)
+            ->filter(function ($document) use ($query) {
+                return stripos($document->name, $query) !== false ||
+                    stripos($document->original_name, $query) !== false;
+            })
+            ->take(10)
+            ->map(function ($document) {
+                return [
+                    'id' => $document->id,
+                    'name' => $document->name,
+                    'original_name' => $document->original_name,
+                    'type' => 'document',
+                    'folder_name' => $document->folder->name
+                ];
+            });
+
+        return response()->json([
+            'folders' => $folders->values(),
+            'documents' => $documents->values(),
+        ]);
+    }
+
+
+    public function getUnits()
+    {
+        $units = Unit::select('id', 'name')->get();
+        return response()->json($units);
+    }
+
+    public function getRoles()
+    {
+        $roles = Role::select('id', 'name')->get();
+        return response()->json($roles);
+    }
+
+    public function getUsers()
+    {
+        $users = User::select('id', 'name', 'email', 'unit_id')
+            ->with('unit:id,name')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'display_name' => $user->name . ' (' . ($user->unit ? $user->unit->name : 'No Unit') . ')'
+                ];
+            });
+
+        return response()->json($users);
     }
 }

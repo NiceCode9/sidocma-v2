@@ -25,7 +25,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/folders', [\App\Http\Controllers\FolderController::class, 'store'])->name('folders.store');
     Route::delete('/folders/{folder}', [\App\Http\Controllers\FolderController::class, 'destroy'])->name('folders.destroy');
     Route::get('/folders/search', [\App\Http\Controllers\FolderController::class, 'search'])->name('folders.search');
-    Route::get('/units', [\App\Http\Controllers\FolderController::class, 'getUnits'])->name('folders.units');
+    Route::get('/folders/get-units', [\App\Http\Controllers\FolderController::class, 'getUnits'])->name('folders.get-units');
+    Route::get('/folders/get-roles', [\App\Http\Controllers\FolderController::class, 'getRoles'])->name('folders.get-roles');
+    Route::get('/folders/get-users', [\App\Http\Controllers\FolderController::class, 'getUsers'])->name('folders.get-users');
 
     // Document routes
     Route::post('/documents', [\App\Http\Controllers\DocumentController::class, 'store'])->name('documents.store');

@@ -18,7 +18,7 @@ class Folder extends Model
         'parent_id',
         'path',
         'level',
-        'category_id',
+        // 'category_id',
         'color',
         'icon',
         'is_active',
@@ -39,20 +39,20 @@ class Folder extends Model
     }
 
     // Boot method to handle path generation
-    protected static function boot()
-    {
-        parent::boot();
+    // protected static function boot()
+    // {
+    //     parent::boot();
 
-        static::creating(function ($folder) {
-            $folder->generatePath();
-        });
+    //     static::creating(function ($folder) {
+    //         $folder->generatePath();
+    //     });
 
-        static::updating(function ($folder) {
-            if ($folder->isDirty('parent_id') || $folder->isDirty('name')) {
-                $folder->generatePath();
-            }
-        });
-    }
+    //     static::updating(function ($folder) {
+    //         if ($folder->isDirty('parent_id') || $folder->isDirty('name')) {
+    //             $folder->updatePath();
+    //         }
+    //     });
+    // }
 
     // Relationships
     public function parent()
@@ -65,10 +65,10 @@ class Folder extends Model
         return $this->hasMany(Folder::class, 'parent_id');
     }
 
-    public function category()
-    {
-        return $this->belongsTo(DocumentCategory::class, 'category_id');
-    }
+    // public function category()
+    // {
+    //     return $this->belongsTo(DocumentCategory::class, 'category_id');
+    // }
 
     public function documents()
     {
@@ -90,20 +90,17 @@ class Folder extends Model
         return $this->hasMany(FolderPermission::class);
     }
 
-    // Helper Methods
-    public function generatePath()
+    public function updatePath(): void
     {
-        $path = $this->name;
-        $level = 0;
-
         if ($this->parent_id) {
             $parent = $this->parent;
-            $path = $parent->path . '/' . $this->name;
-            $level = $parent->level + 1;
+            $this->path = $parent->path . '/' . $this->id;
+            $this->level = $parent->level + 1;
+        } else {
+            $this->path = '/' . $this->id;
+            $this->level = 0;
         }
-
-        $this->path = $path;
-        $this->level = $level;
+        $this->save();
     }
 
     public function getAllDescendants()
@@ -138,5 +135,12 @@ class Folder extends Model
     public function scopeByLevel($query, $level)
     {
         return $query->where('level', $level);
+    }
+
+    public function getBreadcrumb(): \Illuminate\Support\Collection
+    {
+        $ids = array_filter(explode('/', $this->path));
+        $ids = array_map('intval', $ids);
+        return self::whereIn('id', $ids)->orderBy('level')->get();
     }
 }

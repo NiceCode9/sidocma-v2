@@ -26,6 +26,8 @@ class Document extends Model
         'status',
         'tags',
         'metadata',
+        'is_active',
+        'is_letter',
         'is_confidential',
         'expiry_date',
         'created_by',
@@ -38,9 +40,11 @@ class Document extends Model
         'tags' => 'array',
         'metadata' => 'array',
         'is_confidential' => 'boolean',
+        'is_letter' => 'boolean',
         'expiry_date' => 'date',
         'approved_at' => 'datetime',
         'file_size' => 'integer',
+        'is_active' => 'boolean',
     ];
 
     public function getActivitylogOptions(): LogOptions

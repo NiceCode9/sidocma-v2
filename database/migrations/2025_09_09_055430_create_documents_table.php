@@ -28,6 +28,8 @@ return new class extends Migration
             $table->json('tags')->nullable();
             $table->json('metadata')->nullable();
             $table->boolean('is_confidential')->default(false);
+            $table->boolean('is_active')->default(true);
+            $table->boolean('is_letter')->default(false);
             $table->date('expiry_date')->nullable();
             $table->foreignId('created_by')->constrained('users');
             $table->foreignId('updated_by')->nullable()->constrained('users');

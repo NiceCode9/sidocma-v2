@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(UnitSeeder::class);
         // Create permissions
         $permissions = [
             'view-folders',
