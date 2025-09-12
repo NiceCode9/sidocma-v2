@@ -39,7 +39,19 @@ class FolderController extends Controller
 
         // Check permission if accessing specific folder
         if ($folder && !$this->permissionService->canAccessFolder($user, $folder)) {
-            return response()->json(['error' => 'Tidak memiliki akses ke folder ini'], 403);
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses ke folder ini',
+                'folders' => [],
+                'documents' => [],
+                'breadcrumb' => [],
+                'current_folder' => null,
+                'has_more' => false,
+                'total_items' => 0,
+                'loaded_items' => 0,
+                'offset' => $offset,
+                'limit' => $limit
+            ], 200); // Kembalikan HTTP 200 agar ditangani oleh .done()
         }
 
         // Get all accessible folders first
@@ -47,10 +59,10 @@ class FolderController extends Controller
         $allFolders = $foldersQuery
             ->with(['creator'])
             ->active()
-            ->get()
-            ->filter(function ($folder) use ($user) {
-                return $this->permissionService->canAccessFolder($user, $folder);
-            });
+            ->get();
+        // ->filter(function ($folder) use ($user) {
+        //     return $this->permissionService->canAccessFolder($user, $folder);
+        // });
 
         // Get all documents if in specific folder
         $allDocuments = collect([]);
@@ -119,6 +131,7 @@ class FolderController extends Controller
         }
 
         return response()->json([
+            'success' => true,
             'folders' => $folders,
             'documents' => $documents,
             'breadcrumb' => $breadcrumb,
@@ -348,27 +361,76 @@ class FolderController extends Controller
 
     public function setPermissionFolder(Request $request)
     {
-        $folder = Folder::find($request->input('folder_id'));
+        $request->validate([
+            'folder_id' => 'required|exists:folders,id',
+            'permission_types' => 'required|array|min:1',
+            'permission_types.*' => 'in:read,write,download,delete',
+            'unit_id' => 'nullable|array',
+            'unit_id.*' => 'exists:units,id',
+            'role_id' => 'nullable|array',
+            'role_id.*' => 'exists:roles,id',
+            'user_id' => 'nullable|array',
+            'user_id.*' => 'exists:users,id',
+            'force' => 'nullable|boolean'
+        ]);
 
-        $result = $this->permissionService->setFolderPermissions($folder, [
-            'units' => $request->input('unit_id') ?? [],
-            'users' => $request->input('user_id') ?? [],
-            'roles' => $request->input('role_id') ?? [],
-            'permission_types' => $request->permission_types ?? ['read']
-        ], Auth::user());
+        $user = Auth::user();
 
-        if ($result['status'] === 'warning') {
+        if (!$this->permissionService->canManagePermissions($user)) {
             return response()->json([
                 'success' => false,
-                'status' => 'warning',
-                'message' => $result['message'],
-                'existing_permissions' => $result['existing_permissions']
-            ], 409); // 409 Conflict status code
+                'message' => 'Anda tidak memiliki izin untuk mengelola izin folder'
+            ], 403);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Izin folder berhasil disetel'
-        ]);
+        // Validasi: minimal salah satu dari user, role, atau unit harus dipilih
+        if (
+            empty($request->input('user_id')) &&
+            empty($request->input('role_id')) &&
+            empty($request->input('unit_id'))
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Minimal pilih salah satu: User, Role, atau Unit'
+            ], 422);
+        }
+
+        $folder = Folder::findOrFail($request->input('folder_id'));
+        $force = $request->input('force', false);
+
+        try {
+            $result = $this->permissionService->setFolderPermissions($folder, [
+                'units' => $request->input('unit_id', []),
+                'users' => $request->input('user_id', []),
+                'roles' => $request->input('role_id', []),
+                'permission_types' => $request->input('permission_types', [])
+            ], $user, $force);
+
+            if ($result['status'] === 'warning') {
+                return response()->json([
+                    'success' => false,
+                    'status' => 'warning',
+                    'message' => $result['message'],
+                    'existing_permissions' => $result['existing_permissions']
+                ], 409);
+            }
+
+            if ($result['status'] === 'error') {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['message']
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan permission: ' . $e->getMessage()
+            ], 422);
+        }
     }
 }

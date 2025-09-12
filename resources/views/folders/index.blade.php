@@ -80,6 +80,14 @@
                 </div>
             </div>
 
+            <!-- Loading Spinner -->
+            <div class="text-center py-1" id="loadingSpinner" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Memuat data...</p>
+            </div>
+
             <!-- Content Area -->
             <div class="row" id="contentArea">
                 <!-- Folders will be loaded here -->
@@ -106,14 +114,6 @@
                         Scroll down to automatically load more items
                     </small>
                 </div>
-            </div>
-
-            <!-- Loading Spinner -->
-            <div class="text-center py-5" id="loadingSpinner" style="display: none;">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="sr-only">Loading...</span>
-                </div>
-                <p class="mt-2 text-muted">Memuat data...</p>
             </div>
 
             <!-- Empty State -->
@@ -445,7 +445,15 @@
                     limit: itemsPerLoad
                 })
                 .done(function(response) {
-                    // console.log('Response received:', response);
+                    console.log('Response received:', response);
+
+                    // Check if request was successful
+                    if (!response.success) {
+                        console.error('Access denied:', response.message);
+                        showAlert('error', response.message || 'Anda tidak memiliki akses ke folder ini');
+                        hideLoading();
+                        return;
+                    }
 
                     updateBreadcrumb(response.breadcrumb, response.current_folder);
 
@@ -479,6 +487,22 @@
                 })
                 .fail(function(xhr) {
                     console.error('Failed to load folder content:', xhr);
+
+                    // Rollback ke folder sebelumnya
+                    currentFolderId = previousFolderId;
+
+                    // Try to parse JSON response if available
+                    let errorMessage = 'Terjadi kesalahan saat memuat folder';
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            errorMessage = response.message;
+                        }
+                    } catch (e) {
+                        // Use default message if JSON parsing fails
+                    }
+
+                    showAlert('error', errorMessage);
                     hideLoading();
                     handleLoadError(xhr);
                 });
@@ -684,6 +708,7 @@
                 })
                 .done(function(response) {
                     if (response.success) {
+                        console.log(response)
                         const permissionTable = $('#permissionTable');
                         const tbody = permissionTable.find('tbody');
                         const fodlerIdField = $('#folderId');
@@ -691,12 +716,14 @@
 
                         tbody.empty(); // Clear existing data
 
-                        response.data.forEach(permission => {
+                        response.data.forEach((permission, index) => {
                             const row = `
                                 <tr>
-                                    <td>${permission.user?.name}</td>
-                                    <td>${permission.role?.name}</td>
-                                    <td>${permission.unit?.name}</td>
+                                    <td>${index + 1}</td>
+                                    <td>${permission.user ? permission.user.name : 'N/A'}</td>
+                                    <td>${permission.role ? permission.role.name : 'N/A'}</td>
+                                    <td>${permission.unit ? permission.unit.name : 'N/A'}</td>
+                                    <td>${permission.permission_type}</td>
                                 </tr>
                             `;
                             tbody.append(row);
@@ -1554,13 +1581,22 @@
         }
 
         function showLoading() {
+            // $('#loadingSpinner').show();
+            // $('#contentArea').hide();
+            // $('#emptyState').hide();
             $('#loadingSpinner').show();
-            $('#contentArea').hide();
+            // Jangan sembunyikan contentArea di sini - biarkan tetap terlihat
+            // sampai kita tahu request berhasil
             $('#emptyState').hide();
         }
 
         function hideLoading() {
             $('#loadingSpinner').hide();
+            // Kembalikan contentArea jika sebelumnya ada content
+            // Ini akan diatur ulang di loadFolderContent jika request berhasil
+            if ($('#contentArea').children().length > 0) {
+                $('#contentArea').show();
+            }
         }
 
         function showAlert(type, message) {

@@ -15,7 +15,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(UnitSeeder::class);
         // Create permissions
         $permissions = [
             'view-folders',
@@ -45,30 +44,7 @@ class DatabaseSeeder extends Seeder
 
         // Assign permissions to roles
         $superAdmin->givePermissionTo(Permission::all());
-        // $admin->givePermissionTo([
-        //     'view-folders',
-        //     'create-folders',
-        //     'edit-folders',
-        //     'view-documents',
-        //     'upload-documents',
-        //     'edit-documents',
-        //     'manage-permissions'
-        // ]);
-        // $direktur->givePermissionTo([
-        //     'view-folders',
-        //     'view-documents',
-        //     'upload-documents',
-        //     'download-documents',
-        // ]);
-        // $kabag->givePermissionTo([
-        //     'view-folders',
-        //     'view-documents',
-        //     'upload-documents'
-        // ]);
-        // $kabid->givePermissionTo([
-        //     'view-folders',
-        //     'view-documents'
-        // ]);
+
 
         // Create default admin user
         $adminUser = User::create([
@@ -80,5 +56,11 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
         ]);
         $adminUser->assignRole('Super Admin');
+
+        $this->call([
+            UnitSeeder::class,
+            UserSeeder::class,
+            FolderSeeder::class,
+        ]);
     }
 }

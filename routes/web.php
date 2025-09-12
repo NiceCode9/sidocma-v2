@@ -17,6 +17,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::resource('units', \App\Http\Controllers\UnitController::class);
+    Route::resource('users', \App\Http\Controllers\UserController::class);
     Route::resource('document-categories', \App\Http\Controllers\DocumentCategoryController::class);
 
     Route::get('/folders', [\App\Http\Controllers\FolderController::class, 'index'])->name('folders.index');

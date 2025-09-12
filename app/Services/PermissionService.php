@@ -15,9 +15,11 @@ class PermissionService
     public function canAccessFolder(User $user, Folder $folder, $action = 'read')
     {
         // Folder umum (tanpa unit) bisa diakses semua user
-        if (is_null($folder->parent_id) && $action === 'read') {
-            return true;
-        }
+        // if (is_null($folder->parent_id) && $action === 'read') {
+        //     return true;
+        // }
+
+        if (!$folder->permissions()->exists()) return true;
 
         // Creator folder selalu bisa akses
         if ($folder->created_by === $user->id) return true;
@@ -25,30 +27,58 @@ class PermissionService
         // Admin dan direktur dapat mengakses semua folder
         if ($user->hasRole(['admin', 'direktur'])) return true;
 
-        // direct permission
-        $directPermission = FolderPermission::where('folder_id', $folder->id)
-            ->where('user_id', $user->id)
+        // Cek permission berdasarkan kombinasi yang ada di database
+        $hasPermission = FolderPermission::where('folder_id', $folder->id)
             ->where('permission_type', $action)
+            ->where(function ($query) use ($user) {
+                $userRoleIds = $user->roles->pluck('id')->toArray();
+
+                $query->where(function ($q) use ($user, $userRoleIds) {
+                    // Case 1: Exact match - user, role, dan unit semuanya match
+                    $q->where('user_id', $user->id)
+                        ->whereIn('role_id', $userRoleIds)
+                        ->where('unit_id', $user->unit_id);
+                })
+                    ->orWhere(function ($q) use ($user, $userRoleIds) {
+                        // Case 2: User + Role match, unit null (berlaku untuk semua unit)
+                        $q->where('user_id', $user->id)
+                            ->whereIn('role_id', $userRoleIds)
+                            ->whereNull('unit_id');
+                    })
+                    ->orWhere(function ($q) use ($user) {
+                        // Case 3: User + Unit match, role null (berlaku untuk semua role)
+                        $q->where('user_id', $user->id)
+                            ->whereNull('role_id')
+                            ->where('unit_id', $user->unit_id);
+                    })
+                    ->orWhere(function ($q) use ($userRoleIds, $user) {
+                        // Case 4: Role + Unit match, user null (berlaku untuk semua user dengan role dan unit ini)
+                        $q->whereNull('user_id')
+                            ->whereIn('role_id', $userRoleIds)
+                            ->where('unit_id', $user->unit_id);
+                    })
+                    ->orWhere(function ($q) use ($user) {
+                        // Case 5: Hanya User match
+                        $q->where('user_id', $user->id)
+                            ->whereNull('role_id')
+                            ->whereNull('unit_id');
+                    })
+                    ->orWhere(function ($q) use ($userRoleIds) {
+                        // Case 6: Hanya Role match (berlaku untuk semua user dengan role ini)
+                        $q->whereNull('user_id')
+                            ->whereIn('role_id', $userRoleIds)
+                            ->whereNull('unit_id');
+                    })
+                    ->orWhere(function ($q) use ($user) {
+                        // Case 7: Hanya Unit match (berlaku untuk semua user di unit ini)
+                        $q->whereNull('user_id')
+                            ->whereNull('role_id')
+                            ->where('unit_id', $user->unit_id);
+                    });
+            })
             ->exists();
 
-        if ($directPermission) return true;
-
-        // Unit permission
-        $unitPermission = FolderPermission::where('folder_id', $folder->id)
-            ->where('unit_id', $user->unit_id)
-            ->where('permission_type', $action)
-            ->exists();
-
-        if ($unitPermission) return true;
-
-        $rolePermission = FolderPermission::where('folder_id', $folder->id)
-            ->whereIn('role_id', $user->roles->pluck('id'))
-            ->where('permission_type', $action)
-            ->exists();
-
-        if ($rolePermission) return true;
-
-        return false;
+        return $hasPermission;
     }
 
     public function canCreateFolder(User $user, ?Folder $parentFolder = null): bool
@@ -67,6 +97,15 @@ class PermissionService
 
     public function setFolderPermissions(Folder $folder, array $permissions, User $grantor, $force = false)
     {
+        // Validasi input
+        if (empty($permissions['permission_types']) || !is_array($permissions['permission_types'])) {
+            return [
+                'status' => 'error',
+                'message' => 'Permission types harus diisi',
+                'success' => false
+            ];
+        }
+
         // Jika tidak force, cek existing permissions
         if (!$force) {
             $existingPermissions = $this->checkExistingPermissions($folder->id, $permissions);
@@ -87,45 +126,20 @@ class PermissionService
                 $this->removeExistingPermissions($folder->id, $permissions);
             }
 
-            // Set permissions untuk units
-            if (!empty($permissions['units'])) {
-                foreach ($permissions['units'] as $unitId) {
-                    foreach ($permissions['permission_types'] as $permissionType) {
-                        FolderPermission::create([
-                            'folder_id' => $folder->id,
-                            'unit_id' => $unitId,
-                            'permission_type' => $permissionType,
-                            'granted_by' => $grantor->id,
-                        ]);
-                    }
-                }
-            }
+            // Buat semua kombinasi yang mungkin
+            $combinations = $this->generateCombinations($permissions);
 
-            // Set permissions untuk roles
-            if (!empty($permissions['roles'])) {
-                foreach ($permissions['roles'] as $roleId) {
-                    foreach ($permissions['permission_types'] as $permissionType) {
-                        FolderPermission::create([
-                            'folder_id' => $folder->id,
-                            'role_id' => $roleId,
-                            'permission_type' => $permissionType,
-                            'granted_by' => $grantor->id,
-                        ]);
-                    }
-                }
-            }
-
-            // Set permissions untuk users
-            if (!empty($permissions['users'])) {
-                foreach ($permissions['users'] as $userId) {
-                    foreach ($permissions['permission_types'] as $permissionType) {
-                        FolderPermission::create([
-                            'folder_id' => $folder->id,
-                            'user_id' => $userId,
-                            'permission_type' => $permissionType,
-                            'granted_by' => $grantor->id,
-                        ]);
-                    }
+            // Loop setiap kombinasi dan setiap permission_type
+            foreach ($combinations as $combination) {
+                foreach ($permissions['permission_types'] as $permissionType) {
+                    FolderPermission::create([
+                        'folder_id' => $folder->id,
+                        'user_id' => $combination['user_id'],
+                        'role_id' => $combination['role_id'],
+                        'unit_id' => $combination['unit_id'],
+                        'permission_type' => $permissionType,
+                        'granted_by' => $grantor->id,
+                    ]);
                 }
             }
         });
@@ -137,72 +151,63 @@ class PermissionService
         ];
     }
 
+    /**
+     * Generate semua kombinasi yang mungkin dari users, roles, dan units
+     */
+    private function generateCombinations(array $permissions)
+    {
+        $combinations = [];
+
+        // Pastikan array tidak kosong, beri nilai null jika kosong
+        $users = !empty($permissions['users']) ? $permissions['users'] : [null];
+        $roles = !empty($permissions['roles']) ? $permissions['roles'] : [null];
+        $units = !empty($permissions['units']) ? $permissions['units'] : [null];
+
+        // Generate semua kombinasi cartesian product
+        foreach ($users as $userId) {
+            foreach ($roles as $roleId) {
+                foreach ($units as $unitId) {
+                    // Skip jika semua null (tidak ada yang dipilih)
+                    if (is_null($userId) && is_null($roleId) && is_null($unitId)) {
+                        continue;
+                    }
+
+                    $combinations[] = [
+                        'user_id' => $userId,
+                        'role_id' => $roleId,
+                        'unit_id' => $unitId
+                    ];
+                }
+            }
+        }
+
+        return $combinations;
+    }
+
     private function checkExistingPermissions($folderId, array $permissions)
     {
         $existingPermissions = [];
+        $combinations = $this->generateCombinations($permissions);
 
-        // Cek existing permissions untuk units
-        if (!empty($permissions['units'])) {
-            foreach ($permissions['units'] as $unitId) {
-                foreach ($permissions['permission_types'] as $permissionType) {
-                    $existing = FolderPermission::where('folder_id', $folderId)
-                        ->where('unit_id', $unitId)
-                        ->where('permission_type', $permissionType)
-                        ->with(['unit'])
-                        ->first();
+        foreach ($combinations as $combination) {
+            foreach ($permissions['permission_types'] as $permissionType) {
+                $existing = FolderPermission::where('folder_id', $folderId)
+                    ->where('user_id', $combination['user_id'])
+                    ->where('role_id', $combination['role_id'])
+                    ->where('unit_id', $combination['unit_id'])
+                    ->where('permission_type', $permissionType)
+                    ->with(['user', 'role', 'unit'])
+                    ->first();
 
-                    if ($existing) {
-                        $existingPermissions[] = [
-                            'type' => 'unit',
-                            'name' => $existing->unit->name ?? "Unit ID: $unitId",
-                            'permission_type' => $permissionType,
-                            'id' => $existing->id
-                        ];
-                    }
-                }
-            }
-        }
-
-        // Cek existing permissions untuk roles
-        if (!empty($permissions['roles'])) {
-            foreach ($permissions['roles'] as $roleId) {
-                foreach ($permissions['permission_types'] as $permissionType) {
-                    $existing = FolderPermission::where('folder_id', $folderId)
-                        ->where('role_id', $roleId)
-                        ->where('permission_type', $permissionType)
-                        ->with(['role'])
-                        ->first();
-
-                    if ($existing) {
-                        $existingPermissions[] = [
-                            'type' => 'role',
-                            'name' => $existing->role->name ?? "Role ID: $roleId",
-                            'permission_type' => $permissionType,
-                            'id' => $existing->id
-                        ];
-                    }
-                }
-            }
-        }
-
-        // Cek existing permissions untuk users
-        if (!empty($permissions['users'])) {
-            foreach ($permissions['users'] as $userId) {
-                foreach ($permissions['permission_types'] as $permissionType) {
-                    $existing = FolderPermission::where('folder_id', $folderId)
-                        ->where('user_id', $userId)
-                        ->where('permission_type', $permissionType)
-                        ->with(['user'])
-                        ->first();
-
-                    if ($existing) {
-                        $existingPermissions[] = [
-                            'type' => 'user',
-                            'name' => $existing->user->name ?? "User ID: $userId",
-                            'permission_type' => $permissionType,
-                            'id' => $existing->id
-                        ];
-                    }
+                if ($existing) {
+                    $existingPermissions[] = [
+                        'type' => 'combination',
+                        'user_name' => $existing->user->name ?? 'N/A',
+                        'role_name' => $existing->role->name ?? 'N/A',
+                        'unit_name' => $existing->unit->name ?? 'N/A',
+                        'permission_type' => $permissionType,
+                        'id' => $existing->id
+                    ];
                 }
             }
         }
@@ -212,39 +217,16 @@ class PermissionService
 
     private function removeExistingPermissions($folderId, array $permissions)
     {
-        // Hapus existing permissions untuk units
-        if (!empty($permissions['units'])) {
-            foreach ($permissions['units'] as $unitId) {
-                foreach ($permissions['permission_types'] as $permissionType) {
-                    FolderPermission::where('folder_id', $folderId)
-                        ->where('unit_id', $unitId)
-                        ->where('permission_type', $permissionType)
-                        ->delete();
-                }
-            }
-        }
+        $combinations = $this->generateCombinations($permissions);
 
-        // Hapus existing permissions untuk roles
-        if (!empty($permissions['roles'])) {
-            foreach ($permissions['roles'] as $roleId) {
-                foreach ($permissions['permission_types'] as $permissionType) {
-                    FolderPermission::where('folder_id', $folderId)
-                        ->where('role_id', $roleId)
-                        ->where('permission_type', $permissionType)
-                        ->delete();
-                }
-            }
-        }
-
-        // Hapus existing permissions untuk users
-        if (!empty($permissions['users'])) {
-            foreach ($permissions['users'] as $userId) {
-                foreach ($permissions['permission_types'] as $permissionType) {
-                    FolderPermission::where('folder_id', $folderId)
-                        ->where('user_id', $userId)
-                        ->where('permission_type', $permissionType)
-                        ->delete();
-                }
+        foreach ($combinations as $combination) {
+            foreach ($permissions['permission_types'] as $permissionType) {
+                FolderPermission::where('folder_id', $folderId)
+                    ->where('user_id', $combination['user_id'])
+                    ->where('role_id', $combination['role_id'])
+                    ->where('unit_id', $combination['unit_id'])
+                    ->where('permission_type', $permissionType)
+                    ->delete();
             }
         }
     }

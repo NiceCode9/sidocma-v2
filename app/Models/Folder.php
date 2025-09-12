@@ -31,6 +31,8 @@ class Folder extends Model
         'level' => 'integer',
     ];
 
+    protected $with = ['permissions'];
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
