@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Document;
+use App\Models\DocumentPermission;
 use App\Models\Folder;
 use App\Models\FolderPermission;
 use App\Models\User;
@@ -64,9 +65,28 @@ class PermissionService
         return $this->canAccessFolder($user, $parentFolder, 'write');
     }
 
-    public function setFolderPermissions(Folder $folder, array $permissions, User $grantor)
+    public function setFolderPermissions(Folder $folder, array $permissions, User $grantor, $force = false)
     {
-        DB::transaction(function () use ($folder, $permissions, $grantor) {
+        // Jika tidak force, cek existing permissions
+        if (!$force) {
+            $existingPermissions = $this->checkExistingPermissions($folder->id, $permissions);
+
+            if (!empty($existingPermissions)) {
+                return [
+                    'status' => 'warning',
+                    'message' => 'Terdapat permission yang sudah ada',
+                    'existing_permissions' => $existingPermissions,
+                    'success' => false
+                ];
+            }
+        }
+
+        DB::transaction(function () use ($folder, $permissions, $grantor, $force) {
+            // Jika force, hapus existing permissions terlebih dahulu
+            if ($force) {
+                $this->removeExistingPermissions($folder->id, $permissions);
+            }
+
             // Set permissions untuk units
             if (!empty($permissions['units'])) {
                 foreach ($permissions['units'] as $unitId) {
@@ -109,6 +129,124 @@ class PermissionService
                 }
             }
         });
+
+        return [
+            'status' => 'success',
+            'message' => $force ? 'Permission berhasil diperbarui' : 'Permission berhasil disetel',
+            'success' => true
+        ];
+    }
+
+    private function checkExistingPermissions($folderId, array $permissions)
+    {
+        $existingPermissions = [];
+
+        // Cek existing permissions untuk units
+        if (!empty($permissions['units'])) {
+            foreach ($permissions['units'] as $unitId) {
+                foreach ($permissions['permission_types'] as $permissionType) {
+                    $existing = FolderPermission::where('folder_id', $folderId)
+                        ->where('unit_id', $unitId)
+                        ->where('permission_type', $permissionType)
+                        ->with(['unit'])
+                        ->first();
+
+                    if ($existing) {
+                        $existingPermissions[] = [
+                            'type' => 'unit',
+                            'name' => $existing->unit->name ?? "Unit ID: $unitId",
+                            'permission_type' => $permissionType,
+                            'id' => $existing->id
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Cek existing permissions untuk roles
+        if (!empty($permissions['roles'])) {
+            foreach ($permissions['roles'] as $roleId) {
+                foreach ($permissions['permission_types'] as $permissionType) {
+                    $existing = FolderPermission::where('folder_id', $folderId)
+                        ->where('role_id', $roleId)
+                        ->where('permission_type', $permissionType)
+                        ->with(['role'])
+                        ->first();
+
+                    if ($existing) {
+                        $existingPermissions[] = [
+                            'type' => 'role',
+                            'name' => $existing->role->name ?? "Role ID: $roleId",
+                            'permission_type' => $permissionType,
+                            'id' => $existing->id
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Cek existing permissions untuk users
+        if (!empty($permissions['users'])) {
+            foreach ($permissions['users'] as $userId) {
+                foreach ($permissions['permission_types'] as $permissionType) {
+                    $existing = FolderPermission::where('folder_id', $folderId)
+                        ->where('user_id', $userId)
+                        ->where('permission_type', $permissionType)
+                        ->with(['user'])
+                        ->first();
+
+                    if ($existing) {
+                        $existingPermissions[] = [
+                            'type' => 'user',
+                            'name' => $existing->user->name ?? "User ID: $userId",
+                            'permission_type' => $permissionType,
+                            'id' => $existing->id
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $existingPermissions;
+    }
+
+    private function removeExistingPermissions($folderId, array $permissions)
+    {
+        // Hapus existing permissions untuk units
+        if (!empty($permissions['units'])) {
+            foreach ($permissions['units'] as $unitId) {
+                foreach ($permissions['permission_types'] as $permissionType) {
+                    FolderPermission::where('folder_id', $folderId)
+                        ->where('unit_id', $unitId)
+                        ->where('permission_type', $permissionType)
+                        ->delete();
+                }
+            }
+        }
+
+        // Hapus existing permissions untuk roles
+        if (!empty($permissions['roles'])) {
+            foreach ($permissions['roles'] as $roleId) {
+                foreach ($permissions['permission_types'] as $permissionType) {
+                    FolderPermission::where('folder_id', $folderId)
+                        ->where('role_id', $roleId)
+                        ->where('permission_type', $permissionType)
+                        ->delete();
+                }
+            }
+        }
+
+        // Hapus existing permissions untuk users
+        if (!empty($permissions['users'])) {
+            foreach ($permissions['users'] as $userId) {
+                foreach ($permissions['permission_types'] as $permissionType) {
+                    FolderPermission::where('folder_id', $folderId)
+                        ->where('user_id', $userId)
+                        ->where('permission_type', $permissionType)
+                        ->delete();
+                }
+            }
+        }
     }
 
     /**
@@ -154,5 +292,65 @@ class PermissionService
         }
 
         return $query->get();
+    }
+
+    public function canAccessDocument(User $user, Document $document, $action = 'read'): bool
+    {
+        if ($document->is_active) return true;
+
+        if ($document->created_by === $user->id) return true;
+
+        $directPermission = DocumentPermission::where('document_id', $document->id)
+            ->where('user_id', $user->id)
+            ->where('permission_type', $action)
+            ->exists();
+
+        if ($directPermission) return true;
+
+        $rolePermission = DocumentPermission::where('document_id', $document->id)
+            ->where('role_id', $user->role_id)
+            ->where('permission_type', $action)
+            ->exists();
+
+        if ($rolePermission) return true;
+
+        $unitPermissions = DocumentPermission::where('document_id', $document->id)
+            ->where('unit_id', $user->unit_id)
+            ->where('permission_type', $action)
+            ->exists();
+
+        if ($unitPermissions) return true;
+
+        return false;
+    }
+
+    public function canManagePermissions(User $user): bool
+    {
+        return $user->hasRole(['super admin', 'direktur']);
+    }
+
+    public function canUploadDocument(User $user, Folder $folder): bool
+    {
+        if ($this->canAccessFolder($user, $folder, 'write')) return true;
+
+        return false;
+    }
+
+    public function canDownloadDocument(User $user, Document $document): bool
+    {
+        if ($document->created_by === $user->id) return true;
+
+        if ($this->canAccessDocument($user, $document, 'download')) return true;
+
+        return false;
+    }
+
+    public function canDeleteDocument(User $user, Document $document): bool
+    {
+        if ($document->created_by === $user->id) return true;
+
+        if ($this->canAccessDocument($user, $document, 'delete')) return true;
+
+        return false;
     }
 }

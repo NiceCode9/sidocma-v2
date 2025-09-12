@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DocumentCategory;
 use App\Models\Folder;
+use App\Models\FolderPermission;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\FolderService;
@@ -84,7 +85,7 @@ class FolderController extends Controller
                 'name' => $document->title,
                 'original_name' => $document->file_name,
                 'file_size' => $document->file_size,
-                'extension' => $document->extension,
+                'extension' => $document->file_extension,
                 'created_at' => $document->created_at->format('d M Y'),
                 'mime_type' => $document->mime_type,
                 'type' => 'document',
@@ -322,5 +323,52 @@ class FolderController extends Controller
             });
 
         return response()->json($users);
+    }
+
+    public function getPermissionFolder(Request $request)
+    {
+        $folderId = $request->input('folder_id');
+        $user = Auth::user();
+
+        if (!$this->permissionService->canManagePermissions($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda Tidak memiliki izin untuk mengelola izin folder'
+            ], 403);
+        }
+
+        $folderPermission = FolderPermission::with(['folder', 'user', 'role', 'unit'])
+            ->where('folder_id', $folderId)
+            ->get();
+        return response()->json([
+            'success' => true,
+            'data' => $folderPermission
+        ]);
+    }
+
+    public function setPermissionFolder(Request $request)
+    {
+        $folder = Folder::find($request->input('folder_id'));
+
+        $result = $this->permissionService->setFolderPermissions($folder, [
+            'units' => $request->input('unit_id') ?? [],
+            'users' => $request->input('user_id') ?? [],
+            'roles' => $request->input('role_id') ?? [],
+            'permission_types' => $request->permission_types ?? ['read']
+        ], Auth::user());
+
+        if ($result['status'] === 'warning') {
+            return response()->json([
+                'success' => false,
+                'status' => 'warning',
+                'message' => $result['message'],
+                'existing_permissions' => $result['existing_permissions']
+            ], 409); // 409 Conflict status code
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Izin folder berhasil disetel'
+        ]);
     }
 }

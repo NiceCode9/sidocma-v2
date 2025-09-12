@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class DocumentShare extends Model
 {
@@ -50,7 +51,7 @@ class DocumentShare extends Model
             $this->update([
                 'is_read' => true,
                 'read_at' => now(),
-                'opened_by' => auth()->user()->name,
+                'opened_by' => Auth::user()->name,
             ]);
         }
     }

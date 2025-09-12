@@ -28,6 +28,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/folders/get-units', [\App\Http\Controllers\FolderController::class, 'getUnits'])->name('folders.get-units');
     Route::get('/folders/get-roles', [\App\Http\Controllers\FolderController::class, 'getRoles'])->name('folders.get-roles');
     Route::get('/folders/get-users', [\App\Http\Controllers\FolderController::class, 'getUsers'])->name('folders.get-users');
+    Route::get('/folders/get-permission', [\App\Http\Controllers\FolderController::class, 'getPermissionFolder'])->name('folders.get-permission');
+    Route::post('/folders/set-permission', [\App\Http\Controllers\FolderController::class, 'setPermissionFolder'])->name('folders.set-permission');
 
     // Document routes
     Route::post('/documents', [\App\Http\Controllers\DocumentController::class, 'store'])->name('documents.store');

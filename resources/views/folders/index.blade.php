@@ -182,27 +182,8 @@
 
                         <h6 class="mb-3">Permissions Folder</h6>
 
-                        <div class="form-group">
-                            <label>Unit</label>
-                            <select class="form-control select2" id="folderUnit" multiple>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Role</label>
-                            <select class="form-control select2" id="folderRole" multiple>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Jenis Permission</label>
-                            <select class="form-control select2" id="folderPermissionTypes" multiple>
-                                <option value="read">Read - Hanya bisa melihat</option>
-                                <option value="write">Write - Bisa melihat dan menambah</option>
-                                <option value="download">Download - Bisa mendownload file</option>
-                                <option value="delete">Delete - Bisa menghapus</option>
-                            </select>
-                            <small class="form-text text-muted">Pilih level akses untuk unit/role/user yang dipilih (bisa
-                                pilih lebih dari satu)</small>
-                        </div>
+                        <div id="permissionContainer"></div>
+
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -239,7 +220,7 @@
 
                         <div class="form-group">
                             <label>Kategori</label>
-                            <select class="form-control select2" id="category">
+                            <select class="form-control" id="category">
                                 @foreach ($categories as $category)
                                     <option value="{{ $category->id }}">{{ $category->name }}</option>
                                 @endforeach
@@ -254,6 +235,12 @@
                                 <label class="custom-control-label" for="is_latter">Mark as Latter Document</label>
                             </div>
                             <small class="form-text text-muted">Centang jika dokumen ini adalah surat/dokumen resmi</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="document_number">Nomor Dokumen</label>
+                            <input type="text" class="form-control" id="document_number"
+                                placeholder="Masukkan nomor dokumen jika ada">
                         </div>
 
                         <div class="form-group">
@@ -278,6 +265,50 @@
                     <button type="button" class="btn btn-success" id="uploadBtn" onclick="uploadFiles()">
                         <i class="fas fa-upload mr-1"></i>
                         Upload
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Permission -->
+    <div class="modal fade" id="permissionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Permission</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="permissionForm" class="mb-5">
+                        <input type="hidden" id="folderId">
+                        <div id="showModalPermissionContainer"></div>
+
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered datatable" id="permissionTable">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>User</th>
+                                    <th>Unit</th>
+                                    <th>Role</th>
+                                    <th>Permission</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+
+                    <button type="button" class="btn btn-primary btn-set-permission" onclick="setFolderPermission()">
+                        <i class="fas fa-save mr-1"></i>
+                        Set Permission
                     </button>
                 </div>
             </div>
@@ -321,6 +352,7 @@
         let isSearchMode = false;
 
         $(document).ready(function() {
+            $('.datatable').DataTable();
             // Load initial content
             loadFolderContent(null);
 
@@ -391,10 +423,8 @@
                 $('#uploadStatus').text('Uploading...');
             });
 
-            $('#createFolderModal').on('shown.bs.modal', function() {
-                loadMasterData();
-                // $('#folderPermissionTypes').val(['read']).trigger('change'); // Set default
-            });
+            handleModalEvents('#createFolderModal', '#permissionContainer');
+            handleModalEvents('#permissionModal', '#showModalPermissionContainer');
         });
     </script>
 
@@ -428,8 +458,8 @@
                         $('#contentArea').hide();
                         $('#emptyState').show();
                     } else {
-                        console.log('Data found:', response.folders.length, 'folders,', response.documents.length,
-                            'documents');
+                        // console.log('Data found:', response.folders.length, 'folders,', response.documents.length,
+                        //     'documents');
                         $('#emptyState').hide();
                         $('#contentArea').show();
 
@@ -451,6 +481,371 @@
                     console.error('Failed to load folder content:', xhr);
                     hideLoading();
                     handleLoadError(xhr);
+                });
+        }
+
+        function renderContent(folders, documents) {
+            const contentArea = $('#contentArea');
+            const emptyState = $('#emptyState');
+
+            // console.log('Rendering content:', folders.length, 'folders,', documents.length, 'documents');
+
+            if (folders.length === 0 && documents.length === 0) {
+                contentArea.hide();
+                emptyState.show();
+                return;
+            }
+
+            contentArea.show();
+            emptyState.hide();
+            contentArea.html(''); // Clear existing content
+
+            // Render folders first
+            if (folders && folders.length > 0) {
+                folders.forEach(folder => {
+                    // console.log('Rendering folder:', folder.name);
+                    const folderHtml = viewMode === 'grid' ? renderFolderGrid(folder) : renderFolderList(folder);
+                    contentArea.append(folderHtml);
+                });
+            }
+
+            // Render documents
+            if (documents && documents.length > 0) {
+                documents.forEach(document => {
+                    console.log('Rendering document:', document.name);
+                    const documentHtml = viewMode === 'grid' ? renderDocumentGrid(document) : renderDocumentList(
+                        document);
+                    contentArea.append(documentHtml);
+                });
+            }
+
+            // console.log('Content rendered, total items in DOM:', contentArea.children().length);
+        }
+
+        function renderFolderGrid(folder) {
+            return `
+            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+                <div class="folder-item text-center" onclick="navigateToFolder(${folder.id})">
+                    <div class="folder-actions position-absolute" style="top: 10px; right: 10px;">
+                        <button class="btn btn-sm btn-info"
+                                onclick="event.stopPropagation(); showPermission(${folder.id})"
+                                title="Setting Folder Permission">
+                            <i class="fas fa-cogs"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger btn-circle"
+                                onclick="event.stopPropagation(); deleteFolder(${folder.id})"
+                                title="Hapus Folder">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <i class="fas fa-folder folder-icon"></i>
+                    <div class="folder-name">${folder.name}</div>
+                    <div class="folder-info">
+                        <small>
+                            <i class="fas fa-folder mr-1"></i>${folder.subfolders_count} folder
+                            <br>
+                            <i class="fas fa-file mr-1"></i>${folder.documents_count} file
+                        </small>
+                    </div>
+                    <div class="folder-info mt-1">
+                        <small class="text-muted">${folder.created_at}</small>
+                    </div>
+                </div>
+            </div>
+        `;
+        }
+
+        function renderFolderList(folder) {
+            return `
+                <div class="col-12">
+                    <div class="folder-item d-flex align-items-center" onclick="navigateToFolder(${folder.id})">
+                        <i class="fas fa-folder text-warning mr-3" style="font-size: 1.5rem;"></i>
+                        <div class="flex-grow-1">
+                            <div class="folder-name mb-1">${folder.name}</div>
+                            <div class="folder-info">
+                                <small class="text-muted">${folder.description || 'Tidak ada deskripsi'}</small>
+                            </div>
+                        </div>
+                        <div class="text-right mr-3">
+                            <small class="text-muted d-block">${folder.subfolders_count} folder, ${folder.documents_count} file</small>
+                            <small class="text-muted">${folder.created_at}</small>
+                        </div>
+                        <div class="folder-actions">
+                            <button class="btn btn-sm btn-info mr-1"
+                                    onclick="event.stopPropagation(); showPermission(${folder.id})"
+                                    title="Setting Folder Permission">
+                                <i class="fas fa-cogs"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger"
+                                    onclick="event.stopPropagation(); deleteFolder(${folder.id})"
+                                    title="Hapus Folder">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDocumentGrid(document) {
+            const icon = getFileIcon(document.extension);
+            return `
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
+                    <div class="file-item text-center position-relative" onclick="downloadDocument(${document.id})">
+                        <!-- Action buttons -->
+                        <div class="document-actions position-absolute" style="top: 10px; right: 10px;">
+                            <button class="btn btn-sm btn-info btn-circle mr-1"
+                                    onclick="event.stopPropagation(); shareDocument(${document.id})"
+                                    title="Share Dokumen">
+                                <i class="fas fa-share"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger btn-circle"
+                                    onclick="event.stopPropagation(); deleteDocument(${document.id})"
+                                    title="Hapus Dokumen">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+
+                        <i class="${icon} file-icon" style="font-size: 2rem;"></i>
+                        <div class="folder-name" style="font-size: 0.9rem;">${document.name}</div>
+                        <div class="folder-info">
+                            <small class="text-muted">
+                                ${formatFileSize(document.file_size)}
+                                <br>
+                                ${document.created_at}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDocumentList(document) {
+            const icon = getFileIcon(document.file_extension);
+            return `
+                <div class="col-12">
+                    <div class="file-item d-flex align-items-center" onclick="downloadDocument(${document.id})">
+                        <i class="${icon} mr-3" style="font-size: 1.5rem;"></i>
+                        <div class="flex-grow-1">
+                            <div class="folder-name mb-1" style="font-weight: 500;">${document.name}</div>
+                            <div class="folder-info">
+                                <small class="text-muted">${document.file_name}</small>
+                            </div>
+                        </div>
+                        <div class="text-right mr-3">
+                            <small class="text-muted d-block">${formatFileSize(document.file_size)}</small>
+                            <small class="text-muted">${document.created_at}</small>
+                        </div>
+                        <div class="document-actions">
+                            <button class="btn btn-sm btn-info mr-1"
+                                    onclick="event.stopPropagation(); shareDocument(${document.id})"
+                                    title="Share Dokumen">
+                                <i class="fas fa-share"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger"
+                                    onclick="event.stopPropagation(); deleteDocument(${document.id})"
+                                    title="Hapus Dokumen">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getFileIcon(filename) {
+            const extension = filename.split('.').pop().toLowerCase();
+
+            const iconMap = {
+                'pdf': 'fas fa-file-pdf text-danger',
+                'doc': 'fas fa-file-word text-primary',
+                'docx': 'fas fa-file-word text-primary',
+                'xls': 'fas fa-file-excel text-success',
+                'xlsx': 'fas fa-file-excel text-success',
+                'ppt': 'fas fa-file-powerpoint text-warning',
+                'pptx': 'fas fa-file-powerpoint text-warning',
+                'jpg': 'fas fa-file-image text-info',
+                'jpeg': 'fas fa-file-image text-info',
+                'png': 'fas fa-file-image text-info',
+                'gif': 'fas fa-file-image text-info',
+                'zip': 'fas fa-file-archive text-secondary',
+                'rar': 'fas fa-file-archive text-secondary',
+                'txt': 'fas fa-file-alt text-secondary',
+                'default': 'fas fa-file text-secondary'
+            };
+
+            return iconMap[extension] || iconMap['default'];
+        }
+
+        function showPermission(folderId) {
+            $('#permissionModal').modal('show');
+            $.get(`{{ url('folders/get-permission') }}`, {
+                    folder_id: folderId
+                })
+                .done(function(response) {
+                    if (response.success) {
+                        const permissionTable = $('#permissionTable');
+                        const tbody = permissionTable.find('tbody');
+                        const fodlerIdField = $('#folderId');
+                        fodlerIdField.val(folderId);
+
+                        tbody.empty(); // Clear existing data
+
+                        response.data.forEach(permission => {
+                            const row = `
+                                <tr>
+                                    <td>${permission.user?.name}</td>
+                                    <td>${permission.role?.name}</td>
+                                    <td>${permission.unit?.name}</td>
+                                </tr>
+                            `;
+                            tbody.append(row);
+                        });
+                    }
+                })
+                .fail(function() {
+                    console.error('Error loading permission data:', response);
+                    showAlert('error', 'Gagal memuat data izin folder');
+                });
+            // loadPermissionFolder(folderId);
+        }
+
+        function setFolderPermission() {
+            const units = $('#folderUnit').val(); // Array of unit IDs
+            const roles = $('#folderRole').val(); // Array of role IDs
+            const users = $('#folderUser').val(); // Array of user IDs
+            const permissionTypes = $('#folderPermissionTypes').val();
+            const folderId = $('#folderId').val();
+
+            const data = {
+                folder_id: folderId,
+                user_id: users,
+                role_id: roles,
+                unit_id: units,
+                permission_types: permissionTypes,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            };
+            console.log(data);
+
+
+            $.post("{{ route('folders.set-permission') }}", data)
+                .done(function(response) {
+                    console.log(response);
+                    if (response.success) {
+                        showAlert('success', 'Izin folder berhasil disetel');
+                        $('#permissionModal').modal('hide');
+                    } else {
+                        // Handle warning/error dari response
+                        if (response.status === 'warning' && response.existing_permissions) {
+                            showExistingPermissionsModal(response);
+                        } else {
+                            showAlert('error', response.message || 'Gagal menyetel izin folder');
+                        }
+                    }
+                })
+                .fail(function(xhr, status, error) {
+                    console.error('AJAX Error:', xhr.responseText);
+
+                    let errorMessage = 'Gagal menyetel izin folder';
+
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+
+                        if (response.status === 'warning' && response.existing_permissions) {
+                            // Handle warning case dari fail handler (status 409)
+                            showExistingPermissionsModal(response);
+                            return;
+                        } else if (response.message) {
+                            errorMessage = response.message;
+                        }
+                    } catch (e) {
+                        // Jika response bukan JSON, gunakan status text atau error message
+                        errorMessage = xhr.statusText || error || 'Terjadi kesalahan sistem';
+                    }
+
+                    showAlert('error', errorMessage);
+                });
+        }
+
+        // Function untuk menampilkan modal existing permissions
+        function showExistingPermissionsModal(response) {
+            let existingList = '';
+
+            response.existing_permissions.forEach(function(perm) {
+                existingList +=
+                    `<li><strong>${perm.name}</strong> (${perm.type}) - Permission: ${perm.permission_type}</li>`;
+            });
+
+            const modalHtml = `
+                <div class="modal fade" id="existingPermissionsModal" tabindex="-1" role="dialog">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header bg-warning">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Permission Sudah Ada
+                                </h5>
+                                <button type="button" class="close" data-dismiss="modal">
+                                    <span>&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <p><strong>Permission berikut sudah terdaftar untuk folder ini:</strong></p>
+                                <ul class="list-unstyled">
+                                    ${existingList}
+                                </ul>
+                                <p class="text-muted mt-3">
+                                    <small>Apakah Anda ingin melanjutkan dengan menimpa permission yang sudah ada, atau batalkan operasi ini?</small>
+                                </p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                    Batal
+                                </button>
+                                <button type="button" class="btn btn-warning" onclick="forceSetPermission()">
+                                    Timpa Permission
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            $('#existingPermissionsModal').remove();
+
+            // Add modal to body and show
+            $('body').append(modalHtml);
+            $('#existingPermissionsModal').modal('show');
+        }
+
+        // Function untuk force set permission (menimpa yang sudah ada)
+        function forceSetPermission() {
+            // Tambahkan parameter force ke data
+            const forceData = {
+                ...data,
+                force: true
+            };
+
+            $.post("{{ route('folders.set-permission') }}", forceData)
+                .done(function(response) {
+                    if (response.success) {
+                        showAlert('success', 'Izin folder berhasil disetel');
+                        $('#existingPermissionsModal').modal('hide');
+                        $('#permissionModal').modal('hide');
+                    } else {
+                        showAlert('error', response.message || 'Gagal menyetel izin folder');
+                    }
+                })
+                .fail(function(xhr) {
+                    let errorMessage = 'Gagal menyetel izin folder';
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        errorMessage = response.message || errorMessage;
+                    } catch (e) {
+                        errorMessage = xhr.statusText || 'Terjadi kesalahan sistem';
+                    }
+                    showAlert('error', errorMessage);
                 });
         }
 
@@ -627,165 +1022,6 @@
                     }
                 });
             }
-        }
-
-        function renderContent(folders, documents) {
-            const contentArea = $('#contentArea');
-            const emptyState = $('#emptyState');
-
-            console.log('Rendering content:', folders.length, 'folders,', documents.length, 'documents');
-
-            if (folders.length === 0 && documents.length === 0) {
-                contentArea.hide();
-                emptyState.show();
-                return;
-            }
-
-            contentArea.show();
-            emptyState.hide();
-            contentArea.html(''); // Clear existing content
-
-            // Render folders first
-            if (folders && folders.length > 0) {
-                folders.forEach(folder => {
-                    console.log('Rendering folder:', folder.name);
-                    const folderHtml = viewMode === 'grid' ? renderFolderGrid(folder) : renderFolderList(folder);
-                    contentArea.append(folderHtml);
-                });
-            }
-
-            // Render documents
-            if (documents && documents.length > 0) {
-                documents.forEach(document => {
-                    console.log('Rendering document:', document.name);
-                    const documentHtml = viewMode === 'grid' ? renderDocumentGrid(document) : renderDocumentList(
-                        document);
-                    contentArea.append(documentHtml);
-                });
-            }
-
-            console.log('Content rendered, total items in DOM:', contentArea.children().length);
-        }
-
-        function renderFolderGrid(folder) {
-            return `
-            <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
-                <div class="folder-item text-center" onclick="navigateToFolder(${folder.id})">
-                    <div class="folder-actions position-absolute" style="top: 10px; right: 10px;">
-                        <button class="btn btn-sm btn-danger btn-circle"
-                                onclick="event.stopPropagation(); deleteFolder(${folder.id})"
-                                title="Hapus Folder">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                    <i class="fas fa-folder folder-icon"></i>
-                    <div class="folder-name">${folder.name}</div>
-                    <div class="folder-info">
-                        <small>
-                            <i class="fas fa-folder mr-1"></i>${folder.subfolders_count} folder
-                            <br>
-                            <i class="fas fa-file mr-1"></i>${folder.documents_count} file
-                        </small>
-                    </div>
-                    <div class="folder-info mt-1">
-                        <small class="text-muted">${folder.created_at}</small>
-                    </div>
-                </div>
-            </div>
-        `;
-        }
-
-        function renderFolderList(folder) {
-            return `
-                <div class="col-12">
-                    <div class="folder-item d-flex align-items-center" onclick="navigateToFolder(${folder.id})">
-                        <i class="fas fa-folder text-warning mr-3" style="font-size: 1.5rem;"></i>
-                        <div class="flex-grow-1">
-                            <div class="folder-name mb-1">${folder.name}</div>
-                            <div class="folder-info">
-                                <small class="text-muted">${folder.description || 'Tidak ada deskripsi'}</small>
-                            </div>
-                        </div>
-                        <div class="text-right mr-3">
-                            <small class="text-muted d-block">${folder.subfolders_count} folder, ${folder.documents_count} file</small>
-                            <small class="text-muted">${folder.created_at}</small>
-                        </div>
-                        <div class="folder-actions">
-                            <button class="btn btn-sm btn-danger"
-                                    onclick="event.stopPropagation(); deleteFolder(${folder.id})"
-                                    title="Hapus Folder">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderDocumentGrid(document) {
-            const icon = getFileIcon(document.extension);
-            return `
-                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
-                    <div class="file-item text-center position-relative" onclick="downloadDocument(${document.id})">
-                        <!-- Action buttons -->
-                        <div class="document-actions position-absolute" style="top: 10px; right: 10px;">
-                            <button class="btn btn-sm btn-info btn-circle mr-1"
-                                    onclick="event.stopPropagation(); shareDocument(${document.id})"
-                                    title="Share Dokumen">
-                                <i class="fas fa-share"></i>
-                            </button>
-                            <button class="btn btn-sm btn-danger btn-circle"
-                                    onclick="event.stopPropagation(); deleteDocument(${document.id})"
-                                    title="Hapus Dokumen">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-
-                        <i class="${icon} file-icon" style="font-size: 2rem;"></i>
-                        <div class="folder-name" style="font-size: 0.9rem;">${document.name}</div>
-                        <div class="folder-info">
-                            <small class="text-muted">
-                                ${formatFileSize(document.file_size)}
-                                <br>
-                                ${document.created_at}
-                            </small>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderDocumentList(document) {
-            const icon = getFileIcon(document.extension);
-            return `
-                <div class="col-12">
-                    <div class="file-item d-flex align-items-center" onclick="downloadDocument(${document.id})">
-                        <i class="${icon} mr-3" style="font-size: 1.5rem;"></i>
-                        <div class="flex-grow-1">
-                            <div class="folder-name mb-1" style="font-weight: 500;">${document.name}</div>
-                            <div class="folder-info">
-                                <small class="text-muted">${document.original_name}</small>
-                            </div>
-                        </div>
-                        <div class="text-right mr-3">
-                            <small class="text-muted d-block">${formatFileSize(document.file_size)}</small>
-                            <small class="text-muted">${document.created_at}</small>
-                        </div>
-                        <div class="document-actions">
-                            <button class="btn btn-sm btn-info mr-1"
-                                    onclick="event.stopPropagation(); shareDocument(${document.id})"
-                                    title="Share Dokumen">
-                                <i class="fas fa-share"></i>
-                            </button>
-                            <button class="btn btn-sm btn-danger"
-                                    onclick="event.stopPropagation(); deleteDocument(${document.id})"
-                                    title="Hapus Dokumen">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
         }
 
         function navigateToFolder(folderId) {
@@ -988,12 +1224,15 @@
             const description = $('#fileDescription').val().trim();
             const isLatterChecked = $('#is_latter').is(':checked');
             const category = $('#category').val();
+            const documentNumber = $('#document_number').val().trim();
 
-            console.log('Upload started with:');
-            console.log('- Files count:', files.length);
-            console.log('- Description:', description);
-            console.log('- Is Latter:', isLatterChecked);
-            console.log('- Current Folder ID:', currentFolderId);
+            // console.log('Upload started with:');
+            // console.log('- Files count:', files.length);
+            // console.log('- Description:', description);
+            // console.log('- Is Latter:', isLatterChecked);
+            // console.log('- Current Folder ID:', currentFolderId);
+            // console.log('- Category:', category);
+            // console.log('- Document Number:', documentNumber);
 
             if (files.length === 0) {
                 showAlert('warning', 'Pilih minimal satu file!');
@@ -1013,6 +1252,8 @@
 
             // Penting: Kirim sebagai string, bukan boolean
             formData.append('is_latter', isLatterChecked ? '1' : '0');
+            formData.append('category', category);
+            formData.append('document_number', documentNumber);
 
             // Tambahkan files
             for (let i = 0; i < files.length; i++) {
@@ -1057,17 +1298,29 @@
                     console.log('Upload response:', response);
 
                     if (response.success) {
+                        let errorMessage = [];
                         $('#uploadModal').modal('hide');
-                        showAlert('success', response.message || 'File berhasil diupload');
-                        loadFolderContent(currentFolderId);
 
-                        // Log untuk debugging
-                        if (response.data && response.data.length > 0) {
-                            console.log('Uploaded documents is_latter values:');
-                            response.data.forEach(doc => {
-                                console.log(`${doc.name}: is_latter = ${doc.is_latter}`);
+                        if (response.errors && response.errors.length > 0) {
+                            response.errors.forEach(error => {
+                                errorMessage.push(error);
                             });
                         }
+
+                        if (errorMessage.length > 0) {
+                            showAlert('warning', errorMessage.join('<br>'));
+                        } else {
+                            showAlert('success', response.message || 'File berhasil diupload');
+                        }
+                        loadFolderContent(currentFolderId);
+
+                        // // Log untuk debugging
+                        // if (response.data && response.data.length > 0) {
+                        //     console.log('Uploaded documents is_latter values:');
+                        //     response.data.forEach(doc => {
+                        //         console.log(`${doc.name}: is_latter = ${doc.is_latter}`);
+                        //     });
+                        // }
                     } else {
                         showAlert('error', response.message || 'Gagal mengupload file');
                         if (response.errors && response.errors.length > 0) {
@@ -1083,7 +1336,19 @@
 
                     if (xhr.responseJSON) {
                         message = xhr.responseJSON.message || message;
-                        if (xhr.responseJSON.errors) {
+                        if (xhr.status == 422) {
+                            // Clear previous error messages
+                            $('.error-message').remove();
+
+                            // Display error messages below each field
+                            Object.keys(xhr.responseJSON.errors).forEach(field => {
+                                const errorMessage = xhr.responseJSON.errors[field][0];
+                                const inputField = $(`#${field}`);
+                                inputField.addClass('is-invalid');
+                                inputField.after(
+                                    `<div class="invalid-feedback">${errorMessage}</div>`);
+                            });
+
                             console.error('Validation errors:', xhr.responseJSON.errors);
                         }
                     }
@@ -1098,6 +1363,7 @@
                     $('.progress-bar').css('width', '0%');
                     $('.progress-bar').text('');
                     $('#uploadStatus').text('Uploading...');
+                    // Clear validation errors
                 });
         }
 
@@ -1306,13 +1572,13 @@
             };
 
             const alert = $(`
-            <div class="alert ${alertClass[type]} alert-dismissible fade show" role="alert">
-                ${message}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-        `);
+                <div class="alert ${alertClass[type]} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            `);
 
             $('.section-body').prepend(alert);
 
@@ -1327,29 +1593,6 @@
             const sizes = ['B', 'KB', 'MB', 'GB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-        }
-
-        function getFileIcon(filename) {
-            const extension = filename.split('.').pop().toLowerCase();
-            const iconMap = {
-                'pdf': 'fas fa-file-pdf text-danger',
-                'doc': 'fas fa-file-word text-primary',
-                'docx': 'fas fa-file-word text-primary',
-                'xls': 'fas fa-file-excel text-success',
-                'xlsx': 'fas fa-file-excel text-success',
-                'ppt': 'fas fa-file-powerpoint text-warning',
-                'pptx': 'fas fa-file-powerpoint text-warning',
-                'jpg': 'fas fa-file-image text-info',
-                'jpeg': 'fas fa-file-image text-info',
-                'png': 'fas fa-file-image text-info',
-                'gif': 'fas fa-file-image text-info',
-                'zip': 'fas fa-file-archive text-secondary',
-                'rar': 'fas fa-file-archive text-secondary',
-                'txt': 'fas fa-file-alt text-secondary',
-                'default': 'fas fa-file text-secondary'
-            };
-
-            return iconMap[extension] || iconMap['default'];
         }
 
         function debounce(func, wait) {
@@ -1492,6 +1735,60 @@
             // Remove modal after hide
             $('#shareModal').on('hidden.bs.modal', function() {
                 $(this).remove();
+            });
+        }
+
+        function permissionFormElement() {
+            let html = `
+                <div class="form-group">
+                    <label>User</label>
+                    <select class="form-control select2" id="folderUser" multiple>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Unit</label>
+                    <select class="form-control select2" id="folderUnit" multiple>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select class="form-control select2" id="folderRole" multiple>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Jenis Permission</label>
+                    <select class="form-control select2" id="folderPermissionTypes" multiple>
+                        <option value="read">Read - Hanya bisa melihat</option>
+                        <option value="write">Write - Bisa melihat dan menambah</option>
+                        <option value="download">Download - Bisa mendownload file</option>
+                        <option value="delete">Delete - Bisa menghapus</option>
+                    </select>
+                    <small class="form-text text-muted">Pilih level akses untuk unit/role/user yang dipilih (bisa
+                        pilih lebih dari satu)</small>
+                </div>
+            `;
+
+            return html;
+        }
+
+        function initializeSelect2() {
+            $('.select2').select2({
+                width: '100%',
+                placeholder: 'Select options...',
+                allowClear: true,
+            });
+        }
+
+        function handleModalEvents(modalId, containerId) {
+            $(modalId).on('shown.bs.modal', function() {
+                $(containerId).html(permissionFormElement());
+                // Pastikan select2 diinisialisasi setelah HTML dimasukkan
+                setTimeout(() => {
+                    initializeSelect2();
+                    loadMasterData();
+                }, 100);
+            }).on('hidden.bs.modal', function() {
+                $(containerId).html(''); // Clear container
             });
         }
     </script>

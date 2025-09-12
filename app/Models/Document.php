@@ -55,6 +55,11 @@ class Document extends Model
     }
 
     // Relationships
+    public function shares()
+    {
+        return $this->hasMany(DocumentShare::class);
+    }
+
     public function folder()
     {
         return $this->belongsTo(Folder::class);
