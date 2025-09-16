@@ -59,10 +59,10 @@ class FolderController extends Controller
         $allFolders = $foldersQuery
             ->with(['creator'])
             ->active()
-            ->get();
-        // ->filter(function ($folder) use ($user) {
-        //     return $this->permissionService->canAccessFolder($user, $folder);
-        // });
+            ->get()
+            ->filter(function ($folder) use ($user) {
+                return $this->permissionService->canAccessFolder($user, $folder);
+            });
 
         // Get all documents if in specific folder
         $allDocuments = collect([]);

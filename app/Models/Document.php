@@ -57,7 +57,7 @@ class Document extends Model
     // Relationships
     public function shares()
     {
-        return $this->hasMany(DocumentShare::class);
+        return $this->hasOne(DocumentShare::class);
     }
 
     public function folder()

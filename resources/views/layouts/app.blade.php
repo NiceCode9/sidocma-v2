@@ -82,7 +82,7 @@
                             <li class="{{ request()->routeIs('dashboard*') ? 'active' : '' }}"><a class="nav-link"
                                     href="{{ route('dashboard') }}"><i class="fas fa-fire"></i>
                                     <span>Dashboard</span></a></li>
-                            {{-- <li class="menu-header">Data Master</li> --}}
+                            <li class="menu-header">Data Master</li>
                             {{-- <li class="{{ request()->routeIs('role*') ? 'active' : '' }}"><a class="nav-link"
                                     href="{{ route('role.index') }}"><i class="fas fa-user-tie"></i>
                                     <span>Role</span></a></li> --}}
@@ -96,31 +96,27 @@
                                     class="nav-link" href="{{ route('document-categories.index') }}"><i
                                         class="fas fa-folder"></i>
                                     <span>Document Categories</span></a></li>
-                            {{-- <li class="{{ request()->routeIs('users*') ? 'active' : '' }}"><a class="nav-link"
+                            <li class="{{ request()->routeIs('users*') ? 'active' : '' }}"><a class="nav-link"
                                     href="{{ route('users.index') }}"><i class="fas fa-users"></i>
-                                    <span>Users</span></a></li> --}}
+                                    <span>Users</span></a></li>
                         @endif
 
-                        {{-- <li class="menu-header">Manajemen Document</li>
+                        <li class="menu-header">Manajemen Document</li>
                         <li class="{{ request()->routeIs('folders*') ? 'active' : '' }}"><a class="nav-link"
                                 href="{{ route('folders.index') }}"><i class="fas fa-folder-open"></i>
-                                <span>Manajemen Documents</span></a></li>
-                        <li class="{{ request()->routeIs('arsip-surat*') ? 'active' : '' }}"><a class="nav-link"
-                                href="{{ route('arsip-surat.index') }}"><i class="fas fa-envelope"></i>
-                                <span>Arsip Surat</span></a></li> --}}
+                                <span>{{ auth()->user()->hasRole(['super admin', 'direktur'])? 'Mangement Document': 'Document' }}</span></a>
+                        </li>
 
-                        {{-- <li class="menu-header">Transaksi</li> --}}
-
-                        {{-- <li class="nav-item dropdown {{ request()->routeIs('tabungan.*') ? 'active' : '' }}">
-                            <a href="#" class="nav-link has-dropdown">
-                                <i class="fas fa-fire"></i><span>Transaksi</span>
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li class="">
-                                    <a class="nav-link" href="">Menabung</a>
-                                </li>
-                            </ul>
-                        </li> --}}
+                        @if (auth()->user()->hasRole(['super admin', 'direktur']))
+                            <li class="{{ request()->routeIs('management-surat*') ? 'active' : '' }}"><a
+                                    class="nav-link" href="{{ route('management-surat.index') }}"><i
+                                        class="fas fa-paper-plane"></i>
+                                    <span>Management Surat</span></a></li>
+                        @else
+                            <li class="{{ request()->routeIs('surat.create') ? 'active' : '' }}"><a class="nav-link"
+                                    href="{{ route('kirim-surat.index') }}"><i class="fas fa-envelope"></i>
+                                    <span>Kirim Surat</span></a></li>
+                        @endif
                     </ul>
                 </aside>
             </div>

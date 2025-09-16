@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Document;
 use App\Models\Folder;
 use App\Services\DocumentService;
 use App\Services\PermissionService;
@@ -99,5 +100,56 @@ class DocumentController extends Controller
                 'errors' => $errors,
             ],
         ], 201);
+    }
+
+    public function download(Document $document)
+    {
+        $user = Auth::user();
+
+        if (!$this->permissionService->canAccessFolder($user, $document->folder, 'download')) {
+            return response()->json([
+                'error' => 'Anda tidak memiliki izin untuk mengunduh dokumen ini'
+            ], 403);
+        }
+
+        $document->shares->incrementDownload();
+        $document->shares->markAsRead();
+        $document->shares->save();
+
+        try {
+            $filePath = $this->documentService->downloadDocument($document);
+            return response()->download($filePath, $document->file_name);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'error' => 'Gagal mendownload file: ' . $th->getMessage()
+            ], 500);
+        }
+    }
+
+    public function destroy(Document $document)
+    {
+        $user = Auth::user();
+
+        // Check permission
+        if (!$this->permissionService->canAccessFolder($user, $document->folder, 'delete')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak memiliki izin untuk menghapus dokumen ini'
+            ], 403);
+        }
+
+        try {
+            $this->documentService->deleteDocument($document, $user);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dokumen berhasil dihapus'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus dokumen: ' . $e->getMessage()
+            ], 422);
+        }
     }
 }

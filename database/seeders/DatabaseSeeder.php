@@ -39,7 +39,9 @@ class DatabaseSeeder extends Seeder
         // $admin = Role::create(['name' => 'Admin']);
         $direktur = Role::create(['name' => 'direktur']);
         $kabag = Role::create(['name' => 'kabag']);
-        $kabid = Role::create(['name' => 'kabid']);
+        $kasi = Role::create(['name' => 'kasi']);
+        $ketua_tim = Role::create(['name' => 'ketua tim']);
+        $ketua_komite = Role::create(['name' => 'ketua komite']);
         $staff = Role::create(['name' => 'staff']);
 
         // Assign permissions to roles
@@ -52,7 +54,7 @@ class DatabaseSeeder extends Seeder
             'username' => 'admin',
             'email' => 'admin@hospital.com',
             'password' => bcrypt('password'),
-            'employee_id' => 'ADM001',
+            'kode_user' => 'ADM001',
             'is_active' => true,
         ]);
         $adminUser->assignRole('Super Admin');
@@ -60,7 +62,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UnitSeeder::class,
             UserSeeder::class,
-            FolderSeeder::class,
+            // FolderSeeder::class,
         ]);
     }
 }

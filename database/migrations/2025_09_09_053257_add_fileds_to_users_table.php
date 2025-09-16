@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->string('username', 50)->unique()->after('name');
-            $table->string('employee_id', 50)->nullable()->unique()->after('username');
+            $table->string('kode_user', 50)->nullable()->unique()->after('username');
             $table->foreignId('unit_id')->nullable()->constrained('units')->onDelete('set null')->after('email');
             $table->boolean('is_active')->default(true)->after('unit_id');
         });

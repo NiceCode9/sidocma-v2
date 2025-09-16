@@ -19,7 +19,7 @@ class PermissionService
         //     return true;
         // }
 
-        if (!$folder->permissions()->exists()) return true;
+        if (!$folder->permissions()->exists() && $action == 'read') return true;
 
         // Creator folder selalu bisa akses
         if ($folder->created_by === $user->id) return true;

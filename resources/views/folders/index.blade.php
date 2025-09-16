@@ -1394,8 +1394,48 @@
                 });
         }
 
-        function downloadDocument(documentId) {
-            window.location.href = `{{ route('documents.download', ':id') }}`.replace(':id', documentId);
+        async function downloadDocument(documentId) {
+            try {
+                const url = `{{ route('documents.download', ':id') }}`.replace(':id', documentId);
+
+                // Lakukan fetch request terlebih dahulu
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                // Cek jika response adalah JSON (berarti ada error)
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+
+                    if (response.status === 403) {
+                        // Handle permission error
+                        showAlert('error', data.error || 'Anda tidak memiliki izin untuk mengunduh dokumen ini');
+                        return;
+                    }
+
+                    if (response.status === 500) {
+                        // Handle server error
+                        showAlert('error', data.error || 'Terjadi kesalahan saat mengunduh file');
+                        return;
+                    }
+                }
+
+                // Jika response adalah file download, redirect ke URL
+                if (response.ok) {
+                    window.location.href = url;
+                } else {
+                    alert('Terjadi kesalahan yang tidak diketahui');
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan jaringan atau server tidak merespon');
+            }
         }
 
         function performSearch(searchTerm) {

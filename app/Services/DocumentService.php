@@ -7,6 +7,7 @@ use App\Models\DocumentShare;
 use App\Models\Folder;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class DocumentService
@@ -66,5 +67,21 @@ class DocumentService
             'password' => $password,
             'expires_at' => $expiresAt,
         ]);
+    }
+
+    public function downloadDocument(Document $document): string
+    {
+        // $this->logActivity($downloader, ActivityLog::ACTION_DOWNLOAD, $document);
+        return Storage::disk('public')->path($document->file_path);
+    }
+
+    public function deleteDocument(Document $document, User $deleter): bool
+    {
+        // Soft delete
+        $document->update(['is_active' => false]);
+
+        // Log activity
+
+        return true;
     }
 }

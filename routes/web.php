@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ManagementSuratController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -37,6 +38,29 @@ Route::middleware('auth')->group(function () {
     Route::get('/documents/{document}/download', [\App\Http\Controllers\DocumentController::class, 'download'])->name('documents.download');
     Route::delete('/documents/{document}', [\App\Http\Controllers\DocumentController::class, 'destroy'])->name('documents.destroy');
     Route::get('/documents/share/{document}', [\App\Http\Controllers\DocumentController::class, 'share'])->name('documents.share');
+
+    // Management Surat Routes
+    Route::prefix('management-surat')->name('management-surat.')->group(function () {
+        Route::get('/', [ManagementSuratController::class, 'index'])->name('index');
+
+        // Surat Masuk Routes
+        Route::get('/surat-masuk/data', [ManagementSuratController::class, 'suratMasukData'])->name('surat-masuk.data');
+        Route::get('/surat-masuk/stats', [ManagementSuratController::class, 'suratMasukStats'])->name('surat-masuk.stats');
+
+        // Surat Keluar Routes
+        Route::get('/surat-keluar/data', [ManagementSuratController::class, 'suratKeluarData'])->name('surat-keluar.data');
+        Route::get('/surat-keluar/stats', [ManagementSuratController::class, 'suratKeluarStats'])->name('surat-keluar.stats');
+    });
+
+    Route::prefix('kirim-surat')->group(function () {
+        Route::get('/', [ManagementSuratController::class, 'kirimSurat'])->name('kirim-surat.index');
+        Route::get('/data', [ManagementSuratController::class, 'getData'])->name('kirim-surat.data');
+        Route::post('/', [ManagementSuratController::class, 'store'])->name('kirim-surat.store');
+        Route::get('/{id}', [ManagementSuratController::class, 'show'])->name('kirim-surat.show');
+        Route::put('/{id}', [ManagementSuratController::class, 'update'])->name('kirim-surat.update');
+        Route::delete('/{id}', [ManagementSuratController::class, 'destroy'])->name('kirim-surat.destroy');
+        Route::get('/{id}/download', [ManagementSuratController::class, 'download'])->name('kirim-surat.download');
+    });
 });
 
 require __DIR__ . '/auth.php';
