@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Events\SuratCreated;
+use App\Events\SuratRead;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,6 +19,15 @@ class Surat extends Model
         'opened_by',
         'read_at',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::created(function ($surat) {
+            broadcast(new SuratCreated($surat));
+        });
+    }
 
     public function user()
     {
@@ -36,6 +47,8 @@ class Surat extends Model
                 'read_at' => now(),
                 'opened_by' => Auth::user()->name,
             ]);
+
+            broadcast(new SuratRead($this));
         }
     }
 }

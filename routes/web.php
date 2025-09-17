@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ManagementSuratController;
 use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -61,6 +62,26 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{id}', [ManagementSuratController::class, 'destroy'])->name('kirim-surat.destroy');
         Route::get('/{id}/download', [ManagementSuratController::class, 'download'])->name('kirim-surat.download');
     });
+
+    Route::prefix('api')->group(function () {
+        Route::get('notifications/count', [ManagementSuratController::class, 'getNotificationCount'])
+            ->name('api.notifications.count');
+
+        Route::get('notifications/recent', [ManagementSuratController::class, 'getRecentNotifications'])
+            ->name('api.notifications.recent');
+    });
 });
+
+Broadcast::routes(['middleware' => ['auth']]);
+
+// Health Check untuk monitoring server
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'OK',
+        'timestamp' => now()->toISOString(),
+        'server' => gethostname(),
+        'app' => config('app.name')
+    ]);
+})->name('health.check');
 
 require __DIR__ . '/auth.php';

@@ -24,6 +24,8 @@
     <link rel="stylesheet" href="{{ asset('/stisla/assets/css/style.css') }}">
     <link rel="stylesheet" href="{{ asset('/stisla/assets/css/components.css') }}">
 
+    @vite(['resources/js/app.js'])
+
     @stack('styles')
 </head>
 
@@ -123,6 +125,22 @@
 
             <!-- Main Content -->
             <div class="main-content">
+                <!-- Success/Error Messages -->
+                @if (session('success'))
+                    <div class="alert alert-success alert-dismissible fade show" role="alert"
+                        style="position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 1050;">
+                        {{ session('success') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                @endif
+
+                @if (session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert"
+                        style="position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 1050;">
+                        {{ session('error') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                @endif
                 @yield('content')
             </div>
 
@@ -219,6 +237,23 @@
                 }
             });
         }
+    </script>
+
+    <!-- Laravel User Data for JavaScript -->
+    @auth
+        <script>
+            window.Laravel = {
+                user: {
+                    id: {{ Auth::user()->id }},
+                    name: "{{ Auth::user()->name }}",
+                    email: "{{ Auth::user()->email }}"
+                }
+            };
+        </script>
+    @endauth
+
+    <script type="module">
+        import './notifications.js';
     </script>
 
     @stack('scripts')
