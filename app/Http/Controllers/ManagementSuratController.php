@@ -2,13 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\SuratCreate;
 use App\Models\Document;
 use App\Models\Surat;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Yajra\DataTables\Facades\DataTables;
+
+use function PHPUnit\Framework\isNull;
 
 class ManagementSuratController extends Controller
 {
@@ -262,33 +267,41 @@ class ManagementSuratController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'no_surat' => 'required|unique:surats',
-            'perihal' => 'required',
-            'keterangan' => 'nullable',
-            'file' => 'nullable|file|mimes:pdf,doc,docx|max:5120'
-        ]);
+        // $request->validate([
+        //     'no_surat' => 'required|unique:surats',
+        //     'perihal' => 'required',
+        //     'keterangan' => 'nullable',
+        //     'file' => 'nullable|file|mimes:pdf,doc,docx|max:5120'
+        // ]);
 
-        $data = [
-            'user_id' => Auth::user()->id,
-            'no_surat' => $request->no_surat,
-            'perihal' => $request->perihal,
-            'keterangan' => $request->keterangan,
-            'is_read' => false,
-        ];
+        // $data = [
+        //     'user_id' => Auth::user()->id,
+        //     'no_surat' => $request->no_surat,
+        //     'perihal' => $request->perihal,
+        //     'keterangan' => $request->keterangan,
+        //     'is_read' => false,
+        // ];
 
-        if ($request->hasFile('file')) {
-            $file = $request->file('file');
-            $fileName = time() . '_' . $file->getClientOriginalName();
-            $filePath = $file->storeAs('surat', $fileName, 'public');
-            $data['file'] = $filePath;
-        }
+        // if ($request->hasFile('file')) {
+        //     $file = $request->file('file');
+        //     $fileName = time() . '_' . $file->getClientOriginalName();
+        //     $filePath = $file->storeAs('surat', $fileName, 'public');
+        //     $data['file'] = $filePath;
+        // }
 
-        Surat::create($data);
+        // // Buat surat baru
+        // $surat = Surat::create($data);
+        $surat = Surat::first();
+        // Ambil semua user dengan role super admin
+        $superAdmins = User::role('super admin')->get();
+
+        // Broadcast event dengan data surat dan users
+        broadcast(new SuratCreate($surat, $superAdmins));
 
         return response()->json([
             'success' => true,
-            'message' => 'Surat berhasil dikirim'
+            'message' => 'Surat berhasil dikirim',
+            'data' => $surat
         ]);
     }
 
@@ -358,25 +371,108 @@ class ManagementSuratController extends Controller
 
     public function download($id)
     {
+        try {
+            $surat = Surat::findOrFail($id);
+
+            if (!$surat->file) {
+                abort(404, 'File tidak ditemukan');
+            }
+
+            // Mark as read jika user adalah super admin
+            if (Auth::user()->hasRole('super admin')) {
+                $surat->markAsRead();
+            }
+
+            $filePath = storage_path('app/public/' . $surat->file);
+
+            if (!file_exists($filePath)) {
+                abort(404, 'File tidak ditemukan di server');
+            }
+
+            // Get original filename without timestamp prefix
+            $originalName = preg_replace('/^\d+_/', '', basename($surat->file));
+
+            return response()->download($filePath, $originalName);
+        } catch (\Exception $e) {
+            Log::error('Error downloading file: ' . $e->getMessage());
+            abort(500, 'Error downloading file');
+        }
+    }
+
+    /**
+     * Get unread notifications count for bell icon
+     */
+    public function getUnreadCount()
+    {
+        // $unreadCount = Surat::where('is_read', false)->count();
+        $unreadCount = Surat::whereNull('read_at')->count();
+
+        return response()->json([
+            'success' => true,
+            'unread_count' => $unreadCount
+        ]);
+    }
+
+    /**
+     * Get recent notifications for dropdown
+     */
+    public function getNotifications(Request $request)
+    {
+        $limit = $request->get('limit', 10);
+
+        $notifications = Surat::with('user')
+            ->orderBy('created_at', 'desc')
+            ->whereNull('read_at')
+            ->limit($limit)
+            ->get()
+            ->map(function ($surat) {
+                return [
+                    'id' => $surat->id,
+                    'title' => 'Surat Masuk Baru',
+                    'message' => $surat->perihal,
+                    'sender' => $surat->user->name ?? 'Unknown',
+                    'no_surat' => $surat->no_surat,
+                    'created_at' => $surat->created_at,
+                    'time_ago' => $surat->created_at->diffForHumans(),
+                    'is_read' => !is_null($surat->read_at),
+                    'url' => ''
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'notifications' => $notifications
+        ]);
+    }
+
+    /**
+     * Mark single notification as read
+     */
+    public function markAsRead($id)
+    {
         $surat = Surat::findOrFail($id);
+        $surat->markAsRead();
 
-        if (!$surat->file) {
-            abort(404, 'File tidak ditemukan');
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'Notification marked as read'
+        ]);
+    }
 
-        if (Auth::user()->hasRole('super admin')) {
-            $surat->markAsRead();
-        }
+    /**
+     * Mark all notifications as read
+     */
+    public function markAllAsRead()
+    {
+        Surat::whereNull('read_at')
+            ->update([
+                'read_at' => now(),
+                'opened_by' => Auth::user()->name
+            ]);
 
-        $filePath = storage_path('app/public/' . $surat->file);
-
-        if (!file_exists($filePath)) {
-            abort(404, 'File tidak ditemukan di server');
-        }
-
-        // Get original filename without timestamp prefix
-        $originalName = preg_replace('/^\d+_/', '', basename($surat->file));
-
-        return response()->download($filePath, $originalName);
+        return response()->json([
+            'success' => true,
+            'message' => 'All notifications marked as read'
+        ]);
     }
 }

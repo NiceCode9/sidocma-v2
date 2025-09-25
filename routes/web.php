@@ -61,6 +61,12 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{id}', [ManagementSuratController::class, 'destroy'])->name('kirim-surat.destroy');
         Route::get('/{id}/download', [ManagementSuratController::class, 'download'])->name('kirim-surat.download');
     });
+
+    // Notification routes
+    Route::get('/notifications/unread-count', [ManagementSuratController::class, 'getUnreadCount'])->name('notifications.unread-count');
+    Route::get('/notifications/list', [ManagementSuratController::class, 'getNotifications'])->name('notifications.list');
+    Route::post('/notifications/{id}/mark-read', [ManagementSuratController::class, 'markAsRead'])->name('notifications.mark-read');
+    Route::post('/notifications/mark-all-read', [ManagementSuratController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
 });
 
 require __DIR__ . '/auth.php';

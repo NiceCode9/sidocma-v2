@@ -19,10 +19,161 @@
         href="{{ asset('/stisla') }}/node_modules/datatables.net-select-bs4/css/select.bootstrap4.min.css">
     <link rel="stylesheet" href="{{ asset('/stisla') }}/node_modules/bootstrap-daterangepicker/daterangepicker.css">
     <link rel="stylesheet" href="{{ asset('/stisla') }}/node_modules/select2/dist/css/select2.min.css">
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
     <!-- Template CSS -->
     <link rel="stylesheet" href="{{ asset('/stisla/assets/css/style.css') }}">
     <link rel="stylesheet" href="{{ asset('/stisla/assets/css/components.css') }}">
+
+    @vite(['resources/js/app.js'])
+
+    <style>
+        /* Custom CSS for Notification Bell */
+        .notification-badge {
+            position: absolute !important;
+            top: 5px !important;
+            right: 5px !important;
+            background: #dc3545 !important;
+            color: white !important;
+            font-size: 10px !important;
+            font-weight: bold !important;
+            min-width: 16px !important;
+            height: 16px !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            line-height: 1 !important;
+            border: 2px solid #6777ef !important;
+            z-index: 10 !important;
+            animation: pulse 2s infinite;
+        }
+
+        .notification-badge.hidden {
+            display: none !important;
+        }
+
+        /* Pulse animation for new notifications */
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 5px rgba(220, 53, 69, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+            }
+        }
+
+        /* Bell shake animation */
+        @keyframes bellShake {
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            10%,
+            30%,
+            50%,
+            70%,
+            90% {
+                transform: rotate(-10deg);
+            }
+
+            20%,
+            40%,
+            60%,
+            80% {
+                transform: rotate(10deg);
+            }
+        }
+
+        .bell-shake {
+            animation: bellShake 0.5s ease-in-out;
+        }
+
+        /* Notification item styling */
+        .notification-item-unread {
+            background-color: rgba(103, 119, 239, 0.1) !important;
+            border-left: 3px solid #6777ef !important;
+        }
+
+        .notification-item-unread .time {
+            color: #6777ef !important;
+            font-weight: 600 !important;
+        }
+
+        /* Dropdown styling improvements */
+        .dropdown-list {
+            min-width: 320px;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+
+        .dropdown-list-content {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* Empty state styling */
+        .notification-empty {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: #8a92b2;
+        }
+
+        .notification-empty i {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Loading state */
+        .notification-loading {
+            padding: 1rem;
+            text-align: center;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .dropdown-list {
+                min-width: 280px;
+                right: -50px !important;
+            }
+
+            .notification-badge {
+                top: 3px !important;
+                right: 3px !important;
+                min-width: 14px !important;
+                height: 14px !important;
+                font-size: 9px !important;
+            }
+        }
+
+        /* Fix for Stisla theme conflicts */
+        .navbar .nav-link.position-relative {
+            position: relative !important;
+        }
+
+        .navbar .notification-toggle {
+            padding: 0.5rem 0.75rem !important;
+        }
+
+        .navbar .notification-toggle .far.fa-bell {
+            font-size: 1.2rem;
+        }
+
+        /* Beep effect override */
+        .nav-link.beep:after {
+            display: none !important;
+        }
+    </style>
 
     @stack('styles')
 </head>
@@ -39,6 +190,67 @@
                     </ul>
                 </div>
                 <ul class="navbar-nav navbar-right">
+
+
+                    {{-- <li class="dropdown dropdown-list-toggle">
+                        <a href="#" data-toggle="dropdown" class="nav-link notification-toggle nav-link-lg"
+                            id="notification-bell">
+                            <i class="far fa-bell"></i>
+                            <span class="badge badge-danger notification-count" id="notification-count"
+                                style="display: none;">0</span>
+                        </a>
+                        <div class="dropdown-menu dropdown-list dropdown-menu-right" id="notification-dropdown">
+                            <div class="dropdown-header">
+                                <span>Notifications</span>
+                                <div class="float-right">
+                                    <a href="#" id="mark-all-read">Mark All As Read</a>
+                                </div>
+                            </div>
+                            <div class="dropdown-list-content dropdown-list-icons" id="notification-list">
+                                <!-- Notifications will be loaded here -->
+                                <div class="text-center py-3" id="no-notifications">
+                                    <small class="text-muted">No notifications</small>
+                                </div>
+                            </div>
+                            <div class="dropdown-footer text-center">
+                                <a href="{{ route('management-surat.index') ?? '#' }}">View All <i
+                                        class="fas fa-chevron-right"></i></a>
+                            </div>
+                        </div>
+                    </li> --}}
+
+                    <!-- Fixed Notification Bell HTML with Proper Styling -->
+                    <li class="dropdown dropdown-list-toggle">
+                        <a href="#" data-toggle="dropdown"
+                            class="nav-link notification-toggle nav-link-lg position-relative" id="notification-bell">
+                            <i class="far fa-bell"></i>
+                            <span class="notification-badge" id="notification-count" style="display: none;">0</span>
+                        </a>
+
+                        <div class="dropdown-menu dropdown-list dropdown-menu-right">
+                            <div class="dropdown-header">
+                                Surat Masuk
+                                <div class="float-right">
+                                    <a href="#" id="mark-all-read" class="text-primary">Mark All As Read</a>
+                                </div>
+                            </div>
+
+                            <div class="dropdown-list-content dropdown-list-icons" id="notification-list"
+                                style="max-height: 300px; overflow-y: auto;">
+                                <!-- Notifications will be loaded here -->
+                                <div class="text-center py-3" id="loading-notifications">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="sr-only">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="dropdown-footer text-center">
+                                <a href="" class="text-primary">View All <i class="fas fa-chevron-right"></i></a>
+                            </div>
+                        </div>
+                    </li>
+
                     <li class="dropdown"><a href="#" data-toggle="dropdown"
                             class="nav-link dropdown-toggle nav-link-lg nav-link-user">
                             <img alt="image" src="{{ asset('/stisla') }}/assets/img/avatar/avatar-1.png"
@@ -221,6 +433,52 @@
         }
     </script>
 
+    {{-- @if (auth()->user()->hasRole('super admin'))
+        <script type="module">
+            let user = 1;
+            console.log(user);
+            window.Echo.channel('test-channel')
+                .listen('.create', (e) => {
+                    console.log('test');
+                    console.log(e.model);
+                })
+        </script>
+    @endif --}}
+
+    {{-- <script type="module">
+        @auth
+        // Listen ke private channel untuk user yang login
+        window.Echo.private(`suratmasuk.{{ auth()->user()->id }}`)
+            .listen('.surat-masuk', (e) => {
+                console.log('Surat baru diterima:', e);
+                playNotificationSound();
+                // console.log(e)
+
+                // Tampilkan notifikasi atau update UI
+                // showNotification('Surat Baru', e.message);
+
+                // Update counter atau refresh data jika diperlukan
+                // updateSuratCounter();
+            });
+
+        // Optional: Listen ke public channel juga
+        window.Echo.channel('suratmasuk')
+            .listen('.surat-masuk', (e) => {
+                console.log('Public channel - Surat baru:', e);
+            });
+        @endauth
+
+        console.log(window);
+
+        function playNotificationSound() {
+            // Simple notification sound
+            const audio = new Audio('/notification.wav');
+            audio.volume = 0.3;
+            audio.play().catch(e => console.log('Tidak dapat memutar suara notifikasi:', e));
+        }
+    </script> --}}
+
+    @include('layouts.notification-script')
     @stack('scripts')
 </body>
 
