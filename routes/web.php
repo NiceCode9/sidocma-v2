@@ -67,6 +67,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/notifications/list', [ManagementSuratController::class, 'getNotifications'])->name('notifications.list');
     Route::post('/notifications/{id}/mark-read', [ManagementSuratController::class, 'markAsRead'])->name('notifications.mark-read');
     Route::post('/notifications/mark-all-read', [ManagementSuratController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+
+    Route::get('/surat/{id}/view', [ManagementSuratController::class, 'viewFile'])->name('surat.view');
+    Route::get('/surat/{id}/stream', [ManagementSuratController::class, 'streamFile'])->name('surat.stream');
+
+    Route::get('/surat/{id}/docx-html', [ManagementSuratController::class, 'viewDocxHtml'])->name('surat.docx-html');
 });
 
 require __DIR__ . '/auth.php';

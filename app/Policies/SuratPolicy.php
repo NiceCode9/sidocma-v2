@@ -63,4 +63,9 @@ class SuratPolicy
     {
         return false;
     }
+
+    public function canDownload(User $user, Surat $surat)
+    {
+        return $user->unit_id === $surat->user->unit_id || $user->hasRole('super admin');
+    }
 }

@@ -119,6 +119,7 @@
                                                     <th>No. Surat</th>
                                                     <th>Perihal</th>
                                                     <th>Pengirim</th>
+                                                    <th>Unit</th>
                                                     <th>Status</th>
                                                     <th>File</th>
                                                     <th>Tanggal</th>
@@ -249,6 +250,10 @@
                     {
                         data: 'user_name',
                         name: 'user.name'
+                    },
+                    {
+                        data: 'user.unit.name',
+                        name: 'user.unit.name'
                     },
                     {
                         data: 'status',

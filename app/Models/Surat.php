@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use App\Events\SuratCreate;
+use App\Policies\SuratPolicy;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
+#[UsePolicy(SuratPolicy::class)]
 class Surat extends Model
 {
     protected $fillable = [
@@ -21,6 +24,7 @@ class Surat extends Model
 
     protected $casts = [
         'is_read' => 'boolean',
+        'read_at' => 'datetime',
     ];
 
 

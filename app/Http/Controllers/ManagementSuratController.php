@@ -11,9 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpWord\IOFactory;
 use Yajra\DataTables\Facades\DataTables;
-
-use function PHPUnit\Framework\isNull;
 
 class ManagementSuratController extends Controller
 {
@@ -25,7 +24,7 @@ class ManagementSuratController extends Controller
     public function suratMasukData(Request $request)
     {
         if ($request->ajax()) {
-            $data = Surat::with('user')->select('*');
+            $data = Surat::with('user.unit')->select('*');
 
             return DataTables::of($data)
                 ->addIndexColumn()
@@ -50,9 +49,9 @@ class ManagementSuratController extends Controller
                 })
                 ->addColumn('action', function ($row) {
                     $actionBtn = '<div class="btn-group" role="group">
-                        <button type="button" class="btn btn-info btn-sm" onclick="viewSurat(' . $row->id . ')">
-                            <i class="fas fa-eye"></i> Lihat
-                        </button>
+                            <a href="' . route('surat.view', $row->id) . '" class="btn btn-info btn-sm" title="Lihat Surat">
+                                <i class="fas fa-eye"></i> Lihat
+                            </a>
                         <button type="button" class="btn btn-warning btn-sm" onclick="editSurat(' . $row->id . ')">
                             <i class="fas fa-edit"></i> Edit
                         </button>
@@ -223,7 +222,13 @@ class ManagementSuratController extends Controller
     public function getData(Request $request)
     {
         if ($request->ajax()) {
-            $data = Surat::with('user')->select('*');
+            $userUnitId = Auth::user()->unit_id;
+
+            $data = Surat::with('user')
+                ->whereHas('user', function ($query) use ($userUnitId) {
+                    $query->where('unit_id', $userUnitId);
+                })
+                ->select('*');
 
             return DataTables::of($data)
                 ->addIndexColumn()
@@ -242,23 +247,23 @@ class ManagementSuratController extends Controller
                     $downloadBtn = '';
                     if ($row->file) {
                         $downloadBtn = '<a href="' . route('kirim-surat.download', $row->id) . '" class="btn btn-success btn-sm" title="Download">
-                                            <i class="fas fa-download"></i>
-                                        </a>';
+                                    <i class="fas fa-download"></i>
+                                </a>';
                     }
 
                     return '
-                        <div class="btn-group">
-                            ' . $downloadBtn . '
-                            <button type="button" class="btn btn-info btn-sm" onclick="viewSurat(' . $row->id . ')" title="Lihat">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button type="button" class="btn btn-warning btn-sm" onclick="editSurat(' . $row->id . ')" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button type="button" class="btn btn-danger btn-sm" onclick="deleteSurat(' . $row->id . ')" title="Hapus">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>';
+                <div class="btn-group">
+                    ' . $downloadBtn . '
+                    <a href="' . route('surat.view', $row->id) . '" class="btn btn-info btn-sm" title="Lihat Surat">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                    <button type="button" class="btn btn-warning btn-sm" onclick="editSurat(' . $row->id . ')" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteSurat(' . $row->id . ')" title="Hapus">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>';
                 })
                 ->rawColumns(['laporan_dibaca', 'action'])
                 ->make(true);
@@ -267,31 +272,31 @@ class ManagementSuratController extends Controller
 
     public function store(Request $request)
     {
-        // $request->validate([
-        //     'no_surat' => 'required|unique:surats',
-        //     'perihal' => 'required',
-        //     'keterangan' => 'nullable',
-        //     'file' => 'nullable|file|mimes:pdf,doc,docx|max:5120'
-        // ]);
+        $request->validate([
+            'no_surat' => 'required|unique:surats',
+            'perihal' => 'required',
+            'keterangan' => 'nullable',
+            'file' => 'nullable|file|mimes:pdf,doc,docx|max:5120'
+        ]);
 
-        // $data = [
-        //     'user_id' => Auth::user()->id,
-        //     'no_surat' => $request->no_surat,
-        //     'perihal' => $request->perihal,
-        //     'keterangan' => $request->keterangan,
-        //     'is_read' => false,
-        // ];
+        $data = [
+            'user_id' => Auth::user()->id,
+            'no_surat' => $request->no_surat,
+            'perihal' => $request->perihal,
+            'keterangan' => $request->keterangan,
+            'is_read' => false,
+        ];
 
-        // if ($request->hasFile('file')) {
-        //     $file = $request->file('file');
-        //     $fileName = time() . '_' . $file->getClientOriginalName();
-        //     $filePath = $file->storeAs('surat', $fileName, 'public');
-        //     $data['file'] = $filePath;
-        // }
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('surat', $fileName, 'public');
+            $data['file'] = $filePath;
+        }
 
-        // // Buat surat baru
-        // $surat = Surat::create($data);
-        $surat = Surat::first();
+        // Buat surat baru
+        $surat = Surat::create($data);
+        // $surat = Surat::first();
         // Ambil semua user dengan role super admin
         $superAdmins = User::role('super admin')->get();
 
@@ -372,7 +377,7 @@ class ManagementSuratController extends Controller
     public function download($id)
     {
         try {
-            $surat = Surat::findOrFail($id);
+            $surat = Surat::find($id);
 
             if (!$surat->file) {
                 abort(404, 'File tidak ditemukan');
@@ -473,6 +478,168 @@ class ManagementSuratController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'All notifications marked as read'
+        ]);
+    }
+
+    public function viewFile(string $id)
+    {
+        $surat = Surat::find($id);
+        $user = Auth::user();
+        $filePath = Storage::disk('public')->path($surat->file);
+
+        if (!file_exists($filePath)) {
+            abort(404, 'File tidak ditemukan');
+        }
+
+        $fileExtension = strtolower(pathinfo($surat->file, PATHINFO_EXTENSION));
+        $mimeType = $this->getMimeType($fileExtension);
+
+        $docxHtml = null;
+        if (in_array($fileExtension, ['docx', 'doc'])) {
+            $docxHtml = $this->convertDocxToHtml($surat->id);
+        }
+
+        // Mark as read
+        if ($user->hasRole('super admin')) {
+            $surat->markAsRead();
+        }
+
+        return view('view-file', compact('surat', 'fileExtension', 'docxHtml'));
+    }
+
+    public function streamFile(string $id)
+    {
+        $surat = Surat::find($id);
+        $filePath = Storage::disk('public')->path($surat->file);
+
+        if (!file_exists($filePath)) {
+            abort(404);
+        }
+
+        $fileExtension = strtolower(pathinfo($surat->file, PATHINFO_EXTENSION));
+        $mimeType = $this->getMimeType($fileExtension);
+
+        // Set headers to prevent download
+        return response()->file($filePath, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . $surat->file . '"',
+            'X-Frame-Options' => 'SAMEORIGIN',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+        ]);
+    }
+
+    private function getMimeType($extension)
+    {
+        $mimeTypes = [
+            'pdf' => 'application/pdf',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'doc' => 'application/msword',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+        ];
+
+        return $mimeTypes[$extension] ?? 'application/octet-stream';
+    }
+
+    /**
+     * Convert DOCX to HTML
+     */
+    private function convertDocxToHtml(string $id)
+    {
+        $surat = Surat::find($id);
+        $filePath = storage_path('app/public/' . $surat->file);
+        $cacheFile = storage_path('app/public/docx_cache/' . $surat->id . '.html');
+
+        // Check if HTML cache exists and is newer than original file
+        if (file_exists($cacheFile) && filemtime($cacheFile) > filemtime($filePath)) {
+            return file_get_contents($cacheFile);
+        }
+
+        try {
+            // Create cache directory
+            $cacheDir = dirname($cacheFile);
+            if (!is_dir($cacheDir)) {
+                mkdir($cacheDir, 0755, true);
+            }
+
+            // Load DOCX file
+            $phpWord = IOFactory::load($filePath);
+
+            // Convert to HTML
+            $htmlWriter = IOFactory::createWriter($phpWord, 'HTML');
+
+            // Save to cache
+            $htmlWriter->save($cacheFile);
+
+            // Read and clean HTML
+            $html = file_get_contents($cacheFile);
+
+            // Clean up HTML (remove unwanted styles, scripts)
+            $html = $this->cleanDocxHtml($html);
+
+            // Save cleaned HTML
+            file_put_contents($cacheFile, $html);
+
+            return $html;
+        } catch (\Exception $e) {
+            Log::error('DOCX to HTML conversion failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Clean DOCX HTML output
+     */
+    private function cleanDocxHtml($html)
+    {
+        // Remove head section and keep only body content
+        if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $html, $matches)) {
+            $html = $matches[1];
+        }
+
+        // Clean up inline styles (optional)
+        $html = preg_replace('/style="[^"]*"/i', '', $html);
+
+        // Add custom styling
+        $html = '<div class="docx-content" style="
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    ">' . $html . '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Serve DOCX as HTML
+     */
+    public function viewDocxHtml(string $id)
+    {
+        $surat = Surat::find($id);
+        // dd($surat);
+        $cacheFile = storage_path('app/public/docx_cache/' . $surat->id . '.html');
+
+        if (!file_exists($cacheFile)) {
+            $html = $this->convertDocxToHtml($surat->id);
+            if (!$html) {
+                abort(404, 'Tidak dapat mengkonversi dokumen');
+            }
+        } else {
+            $html = file_get_contents($cacheFile);
+        }
+
+        return response($html, 200, [
+            'Content-Type' => 'text/html',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+            'X-Frame-Options' => 'SAMEORIGIN',
         ]);
     }
 }
