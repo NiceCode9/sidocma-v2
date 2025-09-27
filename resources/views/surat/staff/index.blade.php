@@ -158,7 +158,7 @@
     <script>
         $(document).ready(function() {
             // Initialize DataTable
-            const table = $('#suratTable').DataTable({
+            window.tableSuratUnit = $('#suratTable').DataTable({
                 processing: true,
                 serverSide: true,
                 ajax: "{{ route('kirim-surat.data') }}",
@@ -233,7 +233,7 @@
                     success: function(response) {
                         if (response.success) {
                             $('#kirimSuratModal').modal('hide');
-                            table.ajax.reload();
+                            window.tableSuratUnit.ajax.reload();
 
                             Swal.fire({
                                 icon: 'success',

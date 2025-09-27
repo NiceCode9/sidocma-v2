@@ -226,7 +226,7 @@
     <script>
         $(document).ready(function() {
             // Initialize Surat Masuk DataTable
-            $('#suratMasukTable').DataTable({
+            window.tableSm = $('#suratMasukTable').DataTable({
                 processing: true,
                 serverSide: true,
                 ajax: {
@@ -283,7 +283,7 @@
             });
 
             // Initialize Surat Keluar DataTable
-            $('#suratKeluarTable').DataTable({
+            window.tableSk = $('#suratKeluarTable').DataTable({
                 processing: true,
                 serverSide: true,
                 ajax: {
@@ -389,6 +389,13 @@
                     $('#hariIni').text('0');
                 }
             });
+        }
+
+        window.reloadSuratMasukTable = () => {
+            if (window.tableSm && typeof window.tableSm.ajax === 'object') {
+                window.tableSm.ajax.reload(null, false);
+                loadSuratMasukStats();
+            }
         }
 
         // Action functions

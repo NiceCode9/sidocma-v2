@@ -458,6 +458,10 @@ class ManagementSuratController extends Controller
         $surat = Surat::findOrFail($id);
         $surat->markAsRead();
 
+        if ($surat->user_id) {
+            event(new \App\Events\SuratReaded($surat, auth()->user()));
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Notification marked as read'
@@ -469,11 +473,19 @@ class ManagementSuratController extends Controller
      */
     public function markAllAsRead()
     {
+        $surats = Surat::with('users')->whereNull('read_at')->get();
+
         Surat::whereNull('read_at')
             ->update([
                 'read_at' => now(),
-                'opened_by' => Auth::user()->name
+                'opened_by' => Auth::user()->id
             ]);
+
+        foreach ($surats as $surat) {
+            if ($surat->user_id) {
+                event(new \App\Events\SuratReaded($surat, auth()->user()));
+            }
+        }
 
         return response()->json([
             'success' => true,

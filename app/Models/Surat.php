@@ -33,6 +33,11 @@ class Surat extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function openedBy()
+    {
+        return $this->belongsTo(User::class, 'opened_by');
+    }
+
     public function getRouteKeyName()
     {
         return 'no_surat';
@@ -44,7 +49,7 @@ class Surat extends Model
             $this->update([
                 'is_read' => true,
                 'read_at' => now(),
-                'opened_by' => Auth::user()->name ?? 'System',
+                'opened_by' => Auth::user()->id ?? 1,
             ]);
         }
     }

@@ -1,102 +1,162 @@
-<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 <script type="module">
-    const countElement = document.getElementById('notification-count');
-    const listElement = document.getElementById('notification-list');
-    const markAllReadBtn = document.getElementById('mark-all-read');
-    const bellElement = document.getElementById('notification-bell');
-    const loadingElement = document.getElementById('loading-notifications');
+    // Updated Notification Bell JavaScript with Better Styling
+    class SuratNotificationBell {
+        constructor() {
+            this.countElement = document.getElementById('notification-count');
+            this.listElement = document.getElementById('notification-list');
+            this.markAllReadBtn = document.getElementById('mark-all-read');
+            this.bellElement = document.getElementById('notification-bell');
+            this.loadingElement = document.getElementById('loading-notifications');
 
-    // Load initial data
-    loadUnreadCount();
+            this.init();
+        }
 
-    // Setup event listeners
-    setupEventListeners();
+        init() {
+            // Load initial data
+            this.loadUnreadCount();
 
-    // Setup Laravel Echo listeners for real-time notifications
-    setupEchoListeners();
+            // Setup event listeners
+            this.setupEventListeners();
 
-    loadNotifications();
+            // Setup Laravel Echo listeners for real-time notifications
+            this.setupEchoListeners();
+        }
 
-    function setupEventListeners() {
-        markAllReadBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            console.log('test');
-        })
+        setupEventListeners() {
+            // Mark all as read
+            this.markAllReadBtn?.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.markAllAsRead();
+            });
 
-        bellElement.addEventListener('click', () => {
-            loadNotifications();
-        });
+            // Load notifications when dropdown is opened
+            this.bellElement?.addEventListener('click', () => {
+                this.loadNotifications();
+            });
+        }
+
+        setupEchoListeners() {
+            @auth
+            // Listen to private channel for current user
+            window.Echo.private(`suratmasuk.{{ auth()->user()->id }}`)
+                .listen('.surat-masuk', (e) => {
+                    console.log('New surat notification:', e);
+                    this.handleNewNotification(e);
+                });
+
+            window.Echo.channel(`surat-readed`)
+                .listen('.surat-readed', (e) => {
+                    console.log('Surat read notification:', e);
+                    this.reloadSuratMasukData();
+                });
+
+            window.Echo.private('surat-readed.{{ auth()->user()->id }}')
+                .listen('.surat-readed', (e) => {
+                    // handleSuratReadNotification(e);
+                    window.tableSuratUnit.ajax.reload(null, false);
+                });
+        @endauth
     }
 
-    function setupEchoListeners() {
-        @auth
-        window.Echo.private(`suratmasuk.{{ auth()->user()->id }}`)
-            .listen('.surat-masuk', (e) => {
-                console.log('New surat notification:', e);
-                handleNewNotification(e);
-            })
-    @endauth
-    }
+    handleNewNotification(data) {
+        // Update count immediately
+        this.updateNotificationCount(1);
 
-    function handleNewNotification(data) {
-        // Update count Immediately
-        updateNotificationCount(1);
+        // Show browser notification
+        this.showBrowserNotification('Surat Masuk Baru', data.message || 'Anda memiliki surat masuk baru');
 
-        // Show Browser notification
-        showBrowserNotification('Surat Masuk Baru', data.message || 'Anda memiliki surat masuk baru');
-
-        // Add bell notification
-        animateBell();
+        // Add bell animation
+        this.animateBell();
 
         // Show toast notification if available
-        if (typeof toastr !== 'undifined') {
+        if (typeof toastr !== 'undefined') {
             toastr.info('Surat masuk baru diterima!', 'Notifikasi');
+        }
+
+        // Reload surat masuk table and stats
+        this.reloadSuratMasukData();
+    }
+
+    // handleSuratReadNotification(data) {
+    //     // Show browser notification
+    //     this.showBrowserNotification(
+    //         'Surat Telah Dibaca',
+    //         `Surat ${data.surat.no_surat} telah dibaca oleh ${data.surat.opened_by}`
+    //     );
+
+    //     // Show toast notification if available
+    //     if (typeof toastr !== 'undefined') {
+    //         toastr.success(`Surat ${data.surat.no_surat} telah dibaca oleh ${data.opened_by}`, 'Surat Dibaca');
+    //     }
+
+    //     updateNotificationCount(-1);
+
+    //     alert(`Surat ${data.surat.no_surat} telah dibaca oleh ${data.opened_by}`, 'Surat Dibaca');
+    // }
+
+    reloadSuratMasukData() {
+        if (window.location.pathname.includes('management-surat')) {
+            const suratMasukTab = document.getElementById('surat-masuk-tab');
+            const isOnSuratMasukTab = suratMasukTab && suratMasukTab.classList.contains('active');
+
+            if (isOnSuratMasukTab) {
+                if (window.tableSm && typeof window.tableSm.ajax === 'object') {
+                    window.tableSm.ajax.reload(null, false);
+                }
+
+                if (typeof loadSuratMasukStats === 'function') {
+                    loadSuratMasukStats();
+                }
+            }
         }
     }
 
-    async function loadUnreadCount() {
+    async loadUnreadCount() {
         try {
             const response = await fetch('/notifications/unread-count');
             const data = await response.json();
+
             if (data.success) {
-                setNotificationCount(data.unread_count);
+                this.setNotificationCount(data.unread_count);
+            } else {
+                this.setNotificationCount(0);
             }
         } catch (error) {
             console.error('Error loading unread count:', error);
         }
     }
 
-    async function loadNotifications() {
-        if (!listElement) return;
+    async loadNotifications() {
+        if (!this.listElement) return;
 
         // Show loading
-        showLoading(true);
+        this.showLoading(true);
 
         try {
             const response = await fetch('/notifications/list?limit=10');
             const data = await response.json();
 
             if (data.success) {
-                renderNotifications(data.notifications);
+                this.renderNotifications(data.notifications);
             }
         } catch (error) {
             console.error('Error loading notifications:', error);
-            listElement.innerHTML = `
+            this.listElement.innerHTML = `
                 <div class="text-center py-3 text-danger">
                     <i class="fas fa-exclamation-triangle mb-2"></i>
                     <p class="mb-0">Error loading notifications</p>
                 </div>
             `;
         } finally {
-            showLoading(false);
+            this.showLoading(false);
         }
     }
 
-    function renderNotifications(notifications) {
-        if (!listElement) return;
-        console.log(notifications)
+    renderNotifications(notifications) {
+        if (!this.listElement) return;
+
         if (notifications.length === 0) {
-            listElement.innerHTML = `
+            this.listElement.innerHTML = `
                 <div class="notification-empty">
                     <i class="fas fa-bell-slash text-muted"></i>
                     <p class="mb-0">Tidak ada surat masuk</p>
@@ -107,7 +167,7 @@
 
         const notificationHtml = notifications.map(notification => `
             <a href="#" class="dropdown-item ${!notification.is_read ? 'notification-item-unread' : ''}"
-               onclick="handleNotificationClick(${notification.id}, event)">
+               onclick="suratNotificationBell.handleNotificationClick(${notification.id}, event)">
                 <div class="dropdown-item-icon bg-primary text-white">
                     <i class="fas fa-envelope"></i>
                 </div>
@@ -125,14 +185,14 @@
             </a>
         `).join('');
 
-        listElement.innerHTML = notificationHtml;
+        this.listElement.innerHTML = notificationHtml;
     }
 
-    async function handleNotificationClick(notificationId, event) {
+    async handleNotificationClick(notificationId, event) {
         event.preventDefault();
 
         try {
-            await markAsRead(notificationId);
+            await this.markAsRead(notificationId);
 
             // Optional: redirect to surat detail or management page
             // window.location.href = '/surat/manage';
@@ -141,7 +201,7 @@
         }
     }
 
-    async function markAsRead(notificationId) {
+    async markAsRead(notificationId) {
         try {
             const response = await fetch(`/notifications/${notificationId}/mark-read`, {
                 method: 'POST',
@@ -155,20 +215,20 @@
             const data = await response.json();
 
             if (data.success) {
-                updateNotificationCount(-1);
+                this.updateNotificationCount(-1);
                 // Refresh notifications list after short delay
-                setTimeout(() => loadNotifications(), 300);
+                setTimeout(() => this.loadNotifications(), 300);
             }
         } catch (error) {
             console.error('Error marking notification as read:', error);
         }
     }
 
-    async function markAllAsRead() {
+    async markAllAsRead() {
         try {
             // Show loading state
-            markAllReadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
-            markAllReadBtn.style.pointerEvents = 'none';
+            this.markAllReadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            this.markAllReadBtn.style.pointerEvents = 'none';
 
             const response = await fetch('/notifications/mark-all-read', {
                 method: 'POST',
@@ -182,8 +242,8 @@
             const data = await response.json();
 
             if (data.success) {
-                setNotificationCount(0);
-                loadNotifications();
+                this.setNotificationCount(0);
+                this.loadNotifications();
 
                 if (typeof toastr !== 'undefined') {
                     toastr.success('Semua notifikasi telah dibaca');
@@ -196,37 +256,37 @@
             }
         } finally {
             // Reset button state
-            markAllReadBtn.innerHTML = 'Mark All As Read';
-            markAllReadBtn.style.pointerEvents = 'auto';
+            this.markAllReadBtn.innerHTML = 'Mark All As Read';
+            this.markAllReadBtn.style.pointerEvents = 'auto';
         }
     }
 
-    function setNotificationCount(count) {
-        if (!countElement) return;
+    setNotificationCount(count) {
+        if (!this.countElement) return;
 
         if (count > 0) {
-            countElement.textContent = count > 99 ? '99+' : count;
-            countElement.style.display = 'flex';
-            countElement.classList.remove('hidden');
+            this.countElement.textContent = count > 99 ? '99+' : count;
+            this.countElement.style.display = 'flex';
+            this.countElement.classList.remove('hidden');
 
             // Remove beep class if exists and add our custom badge
-            bellElement?.classList.remove('beep');
+            this.bellElement?.classList.remove('beep');
         } else {
-            countElement.style.display = 'none';
-            countElement.classList.add('hidden');
+            this.countElement.style.display = 'none';
+            this.countElement.classList.add('hidden');
 
             // Remove beep class
-            bellElement?.classList.remove('beep');
+            this.bellElement?.classList.remove('beep');
         }
     }
 
-    function updateNotificationCount(increment) {
-        const currentCount = parseInt(countElement?.textContent) || 0;
+    updateNotificationCount(increment) {
+        const currentCount = parseInt(this.countElement?.textContent) || 0;
         const newCount = Math.max(0, currentCount + increment);
-        setNotificationCount(newCount);
+        this.setNotificationCount(newCount);
     }
 
-    function showBrowserNotification(title, message) {
+    showBrowserNotification(title, message) {
         if ('Notification' in window && Notification.permission === 'granted') {
             new Notification(title, {
                 body: message,
@@ -237,28 +297,28 @@
         }
     }
 
-    function animateBell() {
-        if (bellElement) {
+    animateBell() {
+        if (this.bellElement) {
             // Remove existing animation class
-            bellElement.classList.remove('bell-shake');
+            this.bellElement.classList.remove('bell-shake');
 
             // Add animation class
-            bellElement.classList.add('bell-shake');
+            this.bellElement.classList.add('bell-shake');
 
             // Remove animation class after animation completes
             setTimeout(() => {
-                bellElement.classList.remove('bell-shake');
+                this.bellElement.classList.remove('bell-shake');
             }, 500);
         }
     }
 
-    function showLoading(show) {
-        if (loadingElement) {
-            loadingElement.style.display = show ? 'block' : 'none';
+    showLoading(show) {
+        if (this.loadingElement) {
+            this.loadingElement.style.display = show ? 'block' : 'none';
         }
 
-        if (show && listElement) {
-            listElement.innerHTML = `
+        if (show && this.listElement) {
+            this.listElement.innerHTML = `
                 <div class="notification-loading">
                     <div class="spinner-border spinner-border-sm text-primary" role="status">
                         <span class="sr-only">Loading...</span>
@@ -268,6 +328,7 @@
             `;
         }
     }
+    }
 
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
@@ -275,25 +336,28 @@
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
         }
+
+        // Initialize notification bell
+        window.suratNotificationBell = new SuratNotificationBell();
     });
 
     // Add additional CSS for dropdown item indicator
     const additionalStyle = document.createElement('style');
     additionalStyle.textContent = `
-        .dropdown-item-indicator {
-            position: absolute;
-            top: 50%;
-            right: 10px;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            transform: translateY(-50%);
-        }
+    .dropdown-item-indicator {
+        position: absolute;
+        top: 50%;
+        right: 10px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        transform: translateY(-50%);
+    }
 
-        .dropdown-item {
-            position: relative;
-            padding-right: 30px;
-        }
-    `;
+    .dropdown-item {
+        position: relative;
+        padding-right: 30px;
+    }
+`;
     document.head.appendChild(additionalStyle);
 </script>
