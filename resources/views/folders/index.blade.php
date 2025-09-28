@@ -546,12 +546,65 @@
             // console.log('Content rendered, total items in DOM:', contentArea.children().length);
         }
 
+        function showFolderInfo(folderId) {
+            $.get(`{{ url('folders/info') }}/${folderId}`)
+                .done(function(response) {
+                    if (response.success) {
+                        const folder = response.folder;
+                        let infoHtml = `
+                            <div class="modal fade" id="folderInfoModal" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-info text-white">
+                                            <h5 class="modal-title">Info Folder</h5>
+                                            <button type="button" class="close" data-dismiss="modal">
+                                                <span>&times;</span>
+                                            </button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p><strong>Nama Folder:</strong> ${folder.name}</p>
+                                            <p><strong>Deskripsi:</strong> ${folder.description || 'Tidak ada deskripsi'}</p>
+                                            <p><strong>Dibuat Pada:</strong> ${folder.created_at}</p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                        // Remove existing modal if any
+                        $('#folderInfoModal').remove();
+
+                        // Add modal to body and show
+                        $('body').append(infoHtml);
+                        $('#folderInfoModal').modal('show');
+
+                        // Remove modal from DOM after it's hidden
+                        $('#folderInfoModal').on('hidden.bs.modal', function() {
+                            $(this).remove();
+                        });
+                    } else {
+                        showAlert('error', response.message || 'Gagal memuat info folder');
+                    }
+                })
+                .fail(function() {
+                    showAlert('error', 'Gagal memuat info folder');
+                });
+        }
+
         function renderFolderGrid(folder) {
             return `
             <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
                 <div class="folder-item text-center" onclick="navigateToFolder(${folder.id})">
                     <div class="folder-actions position-absolute" style="top: 10px; right: 10px;">
-                        <button class="btn btn-sm btn-info"
+                        <button class="btn btn-sm btn-info btn-circle"
+                                onclick="event.stopPropagation(); showFolderInfo(${folder.id})"
+                                title="Setting Folder Permission">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                        <button class="btn btn-sm btn-circle btn-warning"
                                 onclick="event.stopPropagation(); showPermission(${folder.id})"
                                 title="Setting Folder Permission">
                             <i class="fas fa-cogs"></i>
@@ -595,7 +648,12 @@
                             <small class="text-muted">${folder.created_at}</small>
                         </div>
                         <div class="folder-actions">
-                            <button class="btn btn-sm btn-info mr-1"
+                            <button class="btn btn-sm btn-info"
+                                    onclick="event.stopPropagation(); showFolderInfo(${folder.id})"
+                                    title="Info Folder">
+                                <i class="fas fa-info"></i>
+                            </button>
+                            <button class="btn btn-sm btn-warning"
                                     onclick="event.stopPropagation(); showPermission(${folder.id})"
                                     title="Setting Folder Permission">
                                 <i class="fas fa-cogs"></i>

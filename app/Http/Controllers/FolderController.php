@@ -148,6 +148,22 @@ class FolderController extends Controller
         ]);
     }
 
+    public function getFolderInfo(string $id)
+    {
+        $folder = Folder::find($id);
+        if ($folder && !$this->permissionService->canAccessFolder(Auth::user(), $folder)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses ke folder ini',
+            ], 200); // Kembalikan HTTP 200 agar ditangani oleh .done()
+        }
+
+        return response()->json([
+            'success' => true,
+            'folder' => $folder,
+        ]);
+    }
+
     /**
      * Create new folder
      */

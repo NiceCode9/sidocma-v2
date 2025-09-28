@@ -32,6 +32,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/folders/get-users', [\App\Http\Controllers\FolderController::class, 'getUsers'])->name('folders.get-users');
     Route::get('/folders/get-permission', [\App\Http\Controllers\FolderController::class, 'getPermissionFolder'])->name('folders.get-permission');
     Route::post('/folders/set-permission', [\App\Http\Controllers\FolderController::class, 'setPermissionFolder'])->name('folders.set-permission');
+    Route::get('/folders/info/{folder}', [\App\Http\Controllers\FolderController::class, 'getFolderInfo'])->name('folders.info');
 
     // Document routes
     Route::post('/documents', [\App\Http\Controllers\DocumentController::class, 'store'])->name('documents.store');
