@@ -117,9 +117,11 @@
             const data = await response.json();
 
             if (data.success) {
-                this.setNotificationCount(data.unread_count);
-            } else {
-                this.setNotificationCount(0);
+                if (`{{ auth()->user()->hasRole('super admin') }}`) {
+                    this.setNotificationCount(data.unread_count);
+                } else {
+                    this.setNotificationCount(0);
+                }
             }
         } catch (error) {
             console.error('Error loading unread count:', error);
