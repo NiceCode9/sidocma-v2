@@ -19,7 +19,7 @@ return new class extends Migration
             $table->foreignId('granted_by')->constrained('users');
             $table->timestamps();
 
-            $table->unique(['folder_id', 'user_id', 'permission_type'], 'unique_user_folder_permission');
+            // $table->unique(['folder_id', 'user_id', 'permission_type'], 'unique_user_folder_permission');
         });
     }
 

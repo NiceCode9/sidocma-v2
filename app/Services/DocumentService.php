@@ -84,4 +84,6 @@ class DocumentService
 
         return true;
     }
+
+    // public function
 }

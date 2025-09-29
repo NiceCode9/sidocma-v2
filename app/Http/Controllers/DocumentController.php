@@ -3,20 +3,26 @@
 namespace App\Http\Controllers;
 
 use App\Models\Document;
+use App\Models\DocumentPermission;
 use App\Models\Folder;
+use App\Services\DocumentPermissionService;
 use App\Services\DocumentService;
 use App\Services\PermissionService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class DocumentController extends Controller
 {
     protected $documentService;
+    protected $documentPermissionService;
     protected $permissionService;
 
-    public function __construct(DocumentService $documentService, PermissionService $permissionService)
+    public function __construct(DocumentService $documentService, PermissionService $permissionService, DocumentPermissionService $documentPermissionService)
     {
         $this->documentService = $documentService;
+        $this->documentPermissionService = $documentPermissionService;
         $this->permissionService = $permissionService;
     }
 
@@ -149,6 +155,118 @@ class DocumentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal menghapus dokumen: ' . $e->getMessage()
+            ], 422);
+        }
+    }
+
+    public function getDocumentInfo(Document $document)
+    {
+        $documentInfo = [
+            'name' => $document->title,
+            'description' => $document->description,
+            // 'created_at' => Carbon::parse($document->created_at)->format('d M Y'),
+            'created_at' => $document->created_at,
+        ];
+        return response()->json([
+            'success' => true,
+            'document' => $documentInfo,
+        ]);
+    }
+
+    public function getPermissions(Request $request)
+    {
+        $documentId = $request->input('document_id');
+        $user = Auth::user();
+
+        if (!$this->permissionService->canManagePermissions($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda Tidak memiliki izin untuk mengelola izin folder'
+            ], 403);
+        }
+
+        $documentPermissions = DocumentPermission::with(['document', 'user', 'role', 'unit'])
+            ->where('document_id', $documentId)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $documentPermissions,
+        ]);
+    }
+
+    public function setPermissions(Request $request)
+    {
+        $request->validate([
+            'document_id' => 'required|exists:documents,id',
+            'permission_types' => 'required|array|min:1',
+            'permission_types.*' => 'in:read,write,download,delete',
+            'unit_id' => 'nullable|array',
+            'unit_id.*' => 'exists:units,id',
+            'role_id' => 'nullable|array',
+            'role_id.*' => 'exists:roles,id',
+            'user_id' => 'nullable|array',
+            'user_id.*' => 'exists:users,id',
+            'force' => 'nullable|boolean'
+        ]);
+
+        $user = Auth::user();
+
+        if (!$this->permissionService->canManagePermissions($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki izin untuk mengelola izin folder'
+            ], 403);
+        }
+
+        // Validasi: minimal salah satu dari user, role, atau unit harus dipilih
+        if (
+            empty($request->input('user_id')) &&
+            empty($request->input('role_id')) &&
+            empty($request->input('unit_id'))
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Minimal pilih salah satu: User, Role, atau Unit'
+            ], 422);
+        }
+
+        $document = Document::findOrFail($request->input('document_id'));
+        $force = $request->input('force', false);
+
+        try {
+            $result = $this->documentPermissionService->setDocumentPermissions($document, [
+                'units' => $request->input('unit_id', []),
+                'users' => $request->input('user_id', []),
+                'roles' => $request->input('role_id', []),
+                'permission_types' => $request->input('permission_types', [])
+            ], $user, $force);
+
+            if ($result['status'] === 'warning') {
+                return response()->json([
+                    'success' => false,
+                    'status' => 'warning',
+                    'message' => $result['message'],
+                    'existing_permissions' => $result['existing_permissions']
+                ], 409);
+            }
+
+            if ($result['status'] === 'error') {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['message']
+            ]);
+        } catch (\Exception $e) {
+            Log::error($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan permission: ' . $e->getMessage()
             ], 422);
         }
     }

@@ -9,6 +9,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Services\FolderService;
 use App\Services\PermissionService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -158,9 +159,17 @@ class FolderController extends Controller
             ], 200); // Kembalikan HTTP 200 agar ditangani oleh .done()
         }
 
+        $folderInfo = [
+            'name' => $folder->name,
+            'description' => $folder->description,
+            'created_at' => Carbon::parse($folder->created_at)->locale('id')->format('d M Y'),
+            'subfolders_count' => $folder->children()->active()->count(),
+            'document_count' => $folder->documents()->active()->count(),
+        ];
+
         return response()->json([
             'success' => true,
-            'folder' => $folder,
+            'folder' => $folderInfo,
         ]);
     }
 

@@ -278,32 +278,66 @@ class PermissionService
 
     public function canAccessDocument(User $user, Document $document, $action = 'read'): bool
     {
-        if ($document->is_active) return true;
+        if (!$document->permissions()->exists() && $action == 'read') return true;
 
+        // Creator folder selalu bisa akses
         if ($document->created_by === $user->id) return true;
 
-        $directPermission = DocumentPermission::where('document_id', $document->id)
-            ->where('user_id', $user->id)
+        // Admin dan direktur dapat mengakses semua folder
+        if ($user->hasRole(['admin', 'direktur'])) return true;
+
+        // Cek permission berdasarkan kombinasi yang ada di database
+        $hasPermission = DocumentPermission::where('document_id', $document->id)
             ->where('permission_type', $action)
+            ->where(function ($query) use ($user) {
+                $userRoleIds = $user->roles->pluck('id')->toArray();
+
+                $query->where(function ($q) use ($user, $userRoleIds) {
+                    // Case 1: Exact match - user, role, dan unit semuanya match
+                    $q->where('user_id', $user->id)
+                        ->whereIn('role_id', $userRoleIds)
+                        ->where('unit_id', $user->unit_id);
+                })
+                    ->orWhere(function ($q) use ($user, $userRoleIds) {
+                        // Case 2: User + Role match, unit null (berlaku untuk semua unit)
+                        $q->where('user_id', $user->id)
+                            ->whereIn('role_id', $userRoleIds)
+                            ->whereNull('unit_id');
+                    })
+                    ->orWhere(function ($q) use ($user) {
+                        // Case 3: User + Unit match, role null (berlaku untuk semua role)
+                        $q->where('user_id', $user->id)
+                            ->whereNull('role_id')
+                            ->where('unit_id', $user->unit_id);
+                    })
+                    ->orWhere(function ($q) use ($userRoleIds, $user) {
+                        // Case 4: Role + Unit match, user null (berlaku untuk semua user dengan role dan unit ini)
+                        $q->whereNull('user_id')
+                            ->whereIn('role_id', $userRoleIds)
+                            ->where('unit_id', $user->unit_id);
+                    })
+                    ->orWhere(function ($q) use ($user) {
+                        // Case 5: Hanya User match
+                        $q->where('user_id', $user->id)
+                            ->whereNull('role_id')
+                            ->whereNull('unit_id');
+                    })
+                    ->orWhere(function ($q) use ($userRoleIds) {
+                        // Case 6: Hanya Role match (berlaku untuk semua user dengan role ini)
+                        $q->whereNull('user_id')
+                            ->whereIn('role_id', $userRoleIds)
+                            ->whereNull('unit_id');
+                    })
+                    ->orWhere(function ($q) use ($user) {
+                        // Case 7: Hanya Unit match (berlaku untuk semua user di unit ini)
+                        $q->whereNull('user_id')
+                            ->whereNull('role_id')
+                            ->where('unit_id', $user->unit_id);
+                    });
+            })
             ->exists();
 
-        if ($directPermission) return true;
-
-        $rolePermission = DocumentPermission::where('document_id', $document->id)
-            ->where('role_id', $user->role_id)
-            ->where('permission_type', $action)
-            ->exists();
-
-        if ($rolePermission) return true;
-
-        $unitPermissions = DocumentPermission::where('document_id', $document->id)
-            ->where('unit_id', $user->unit_id)
-            ->where('permission_type', $action)
-            ->exists();
-
-        if ($unitPermissions) return true;
-
-        return false;
+        return $hasPermission;
     }
 
     public function canManagePermissions(User $user): bool

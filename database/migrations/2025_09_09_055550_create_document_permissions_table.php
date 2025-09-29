@@ -19,7 +19,7 @@ return new class extends Migration
             $table->foreignId('granted_by')->constrained('users');
             $table->timestamps();
 
-            $table->unique(['document_id', 'user_id', 'permission_type'], 'unique_user_document_permission');
+            // $table->unique(['document_id', 'user_id', 'permission_type'], 'unique_user_document_permission');
         });
     }
 

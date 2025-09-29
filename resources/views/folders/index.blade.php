@@ -271,7 +271,7 @@
         </div>
     </div>
 
-    <!-- Modal Permission -->
+    <!-- Modal Folder Permission -->
     <div class="modal fade" id="permissionModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -309,6 +309,49 @@
                     <button type="button" class="btn btn-primary btn-set-permission" onclick="setFolderPermission()">
                         <i class="fas fa-save mr-1"></i>
                         Set Permission
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Document Permission -->
+    <div class="modal fade" id="documentPermissionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Document Permission</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="documentPermissionForm" class="mb-5">
+                        <input type="hidden" id="documentId">
+                        <div id="showModalDocumentPermissionContainer"></div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered datatable" id="documentPermissionTable">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>User</th>
+                                    <th>Unit</th>
+                                    <th>Role</th>
+                                    <th>Permission</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+
+                    <button type="button" class="btn btn-primary btn-set-permission" onclick="setDocumentPermission()">
+                        <i class="fas fa-save mr-1"></i>
+                        Set Document Permission
                     </button>
                 </div>
             </div>
@@ -425,6 +468,7 @@
 
             handleModalEvents('#createFolderModal', '#permissionContainer');
             handleModalEvents('#permissionModal', '#showModalPermissionContainer');
+            handleModalEvents('#documentPermissionModal', '#showModalDocumentPermissionContainer');
         });
     </script>
 
@@ -565,6 +609,8 @@
                                             <p><strong>Nama Folder:</strong> ${folder.name}</p>
                                             <p><strong>Deskripsi:</strong> ${folder.description || 'Tidak ada deskripsi'}</p>
                                             <p><strong>Dibuat Pada:</strong> ${folder.created_at}</p>
+                                            <p><strong>Total Sub Folder:</strong> ${folder.subfolders_count} Folder</p>
+                                            <p><strong>Total Dokumen:</strong> ${folder.document_count} Dokumen</p>
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
@@ -591,6 +637,54 @@
                 })
                 .fail(function() {
                     showAlert('error', 'Gagal memuat info folder');
+                });
+        }
+
+        function showDocumentInfo(documentId) {
+            $.get(`{{ url('documents/info') }}/${documentId}`)
+                .done(function(response) {
+                    if (response.success) {
+                        const document = response.document;
+                        let infoHtml = `
+                            <div class="modal fade" id="documentInfoModal" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-info text-white">
+                                            <h5 class="modal-title">Info Document</h5>
+                                            <button type="button" class="close" data-dismiss="modal">
+                                                <span>&times;</span>
+                                            </button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p><strong>Nama Document:</strong> ${document.name}</p>
+                                            <p><strong>Deskripsi:</strong> ${document.description || 'Tidak ada deskripsi'}</p>
+                                            <p><strong>Tanggal Upload:</strong> ${moment(document.created_at).format('DD MMMM YYYY HH:mm')}</p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                        // Remove existing modal if any
+                        $('#documentInfoModal').remove();
+
+                        // Add modal to body and show
+                        $('body').append(infoHtml);
+                        $('#documentInfoModal').modal('show');
+
+                        // Remove modal from DOM after it's hidden
+                        $('#documentInfoModal').on('hidden.bs.modal', function() {
+                            $(this).remove();
+                        });
+                    } else {
+                        showAlert('error', response.message || 'Gagal memuat info document');
+                    }
+                })
+                .fail(function() {
+                    showAlert('error', 'Gagal memuat info document');
                 });
         }
 
@@ -676,8 +770,13 @@
                     <div class="file-item text-center position-relative" onclick="downloadDocument(${document.id})">
                         <!-- Action buttons -->
                         <div class="document-actions position-absolute" style="top: 10px; right: 10px;">
-                            <button class="btn btn-sm btn-info btn-circle mr-1"
-                                    onclick="event.stopPropagation(); shareDocument(${document.id})"
+                            <button class="btn btn-sm btn-info btn-circle"
+                                onclick="event.stopPropagation(); showDocumentInfo(${document.id})"
+                                title="Setting Document Permission">
+                                <i class="fas fa-info-circle"></i>
+                            </button>
+                            <button class="btn btn-sm btn-warning btn-circle"
+                                    onclick="event.stopPropagation(); showDocumentPermissions(${document.id})"
                                     title="Share Dokumen">
                                 <i class="fas fa-share"></i>
                             </button>
@@ -703,7 +802,7 @@
         }
 
         function renderDocumentList(document) {
-            const icon = getFileIcon(document.file_extension);
+            const icon = getFileIcon(document.extension);
             return `
                 <div class="col-12">
                     <div class="file-item d-flex align-items-center" onclick="downloadDocument(${document.id})">
@@ -719,8 +818,8 @@
                             <small class="text-muted">${document.created_at}</small>
                         </div>
                         <div class="document-actions">
-                            <button class="btn btn-sm btn-info mr-1"
-                                    onclick="event.stopPropagation(); shareDocument(${document.id})"
+                            <button class="btn btn-sm btn-warning"
+                                    onclick="event.stopPropagation(); showDocumentPermissions(${document.id})"
                                     title="Share Dokumen">
                                 <i class="fas fa-share"></i>
                             </button>
@@ -779,8 +878,8 @@
                                 <tr>
                                     <td>${index + 1}</td>
                                     <td>${permission.user ? permission.user.name : 'N/A'}</td>
-                                    <td>${permission.role ? permission.role.name : 'N/A'}</td>
                                     <td>${permission.unit ? permission.unit.name : 'N/A'}</td>
+                                    <td>${permission.role ? permission.role.name : 'N/A'}</td>
                                     <td>${permission.permission_type}</td>
                                 </tr>
                             `;
@@ -1214,41 +1313,6 @@
                     selectUser.trigger('change.select2');
                 });
         }
-
-        // function createFolder() {
-        //     const name = $('#folderName').val().trim();
-        //     const description = $('#folderDescription').val().trim();
-        //     const unitId = $('#folderUnit').val();
-
-        //     if (!name) {
-        //         showAlert('warning', 'Nama folder harus diisi!');
-        //         return;
-        //     }
-
-        //     const data = {
-        //         name: name,
-        //         description: description,
-        //         parent_id: currentFolderId,
-        //         unit_id: unitId || null,
-        //         _token: '{{ csrf_token() }}'
-        //     };
-
-        //     $.post('{{ route('folders.store') }}', data)
-        //         .done(function(response) {
-        //             if (response.success) {
-        //                 $('#createFolderModal').modal('hide');
-        //                 $('#createFolderForm')[0].reset();
-        //                 showAlert('success', response.message);
-        //                 loadFolderContent(currentFolderId);
-        //             } else {
-        //                 showAlert('error', response.message);
-        //             }
-        //         })
-        //         .fail(function(xhr) {
-        //             const message = xhr.responseJSON?.message || 'Gagal membuat folder';
-        //             showAlert('error', message);
-        //         });
-        // }
 
         function createFolder() {
             const name = $('#folderName').val().trim();
@@ -1928,6 +1992,8 @@
     </script>
 @endpush
 
+{{-- Document permissions --}}
+@include('folders.document-script')
 @push('styles')
     <style>
         /* Action buttons styling */
