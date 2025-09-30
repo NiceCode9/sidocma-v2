@@ -121,7 +121,7 @@ class Document extends Model
     // Scopes
     public function scopeActive($query)
     {
-        return $query->where('status', '!=', 'deleted');
+        return $query->where('is_active', true);
     }
 
     public function scopeApproved($query)

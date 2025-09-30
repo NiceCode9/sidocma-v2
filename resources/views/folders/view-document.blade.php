@@ -1,8 +1,19 @@
-@extends('layouts.app')
+<!doctype html>
+<html lang="en">
 
-@section('title', 'View Surat - ' . $surat->no_surat)
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-@section('content')
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+    <title>Preview Document</title>
+</head>
+
+<body>
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-12">
@@ -10,15 +21,12 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
                             <i class="fas fa-file-alt mr-2"></i>
-                            {{ $surat->no_surat }} - {{ $surat->perihal }}
+                            {{ $document->document_number }} - {{ $document->category->name }}
                         </h5>
                         <div>
-                            <a href="{{ route('kirim-surat.download', $surat->id) }}" class="btn btn-sm btn-primary">
+                            <a href="javascript:void(0)" class="btn btn-sm btn-primary"
+                                onclick="downloadDocument({{ $document->id }})">
                                 <i class="fas fa-download mr-1"></i> Download
-                            </a>
-                            <a href="{{ auth()->user()->hasRole('super admin') ? route('management-surat.index') : route('kirim-surat.index') }}"
-                                class="btn btn-sm btn-secondary">
-                                <i class="fas fa-arrow-left mr-1"></i> Kembali
                             </a>
                         </div>
                     </div>
@@ -64,9 +72,10 @@
                         @elseif(in_array($fileExtension, ['jpg', 'jpeg', 'png', 'gif']))
                             {{-- Image Viewer --}}
                             <div class="text-center p-3">
-                                <img src="{{ route('surat.stream', $surat->id) }}" class="img-fluid no-select"
-                                    style="max-height: 80vh; border: 1px solid #dee2e6;" alt="{{ $surat->perihal }}"
-                                    oncontextmenu="return false;" ondragstart="return false;">
+                                <img src="{{ route('documents.stream-file', $document->id) }}"
+                                    class="img-fluid no-select" style="max-height: 80vh; border: 1px solid #dee2e6;"
+                                    alt="{{ $document->perihal }}" oncontextmenu="return false;"
+                                    ondragstart="return false;">
                             </div>
                         @elseif(in_array($fileExtension, ['doc', 'docx']))
                             {{-- Document Viewer dengan iframe Office Online --}}
@@ -84,7 +93,7 @@
                                             <div>
                                                 <h6 class="mb-0">
                                                     <i class="fas fa-file-word text-primary mr-2"></i>
-                                                    {{ $surat->perihal }}
+                                                    {{ $document->perihal }}
                                                 </h6>
                                             </div>
                                             <div>
@@ -97,7 +106,7 @@
                                                 </button>
 
                                                 {{-- @if (auth()->user()->canDownloadFile()) --}}
-                                                <a href="{{ route('kirim-surat.download', $surat->id) }}"
+                                                <a href="{{ route('kirim-surat.download', $document->id) }}"
                                                     class="btn btn-sm btn-primary ml-2">
                                                     <i class="fas fa-download mr-1"></i> Download
                                                 </a>
@@ -155,7 +164,7 @@
                                                         <div class="card-body text-center">
                                                             <i class="fas fa-download fa-2x text-success mb-2"></i>
                                                             <h6>Download</h6>
-                                                            <a href="{{ route('kirim-surat.download', $surat->id) }}"
+                                                            <a href="{{ route('kirim-surat.download', $document->id) }}"
                                                                 class="btn btn-success btn-sm">
                                                                 <i class="fas fa-download mr-1"></i> Download
                                                             </a>
@@ -200,9 +209,11 @@
                             {{-- Unknown file type --}}
                             <div class="p-4 text-center">
                                 <div class="alert alert-warning">
-                                    <h5><i class="fas fa-exclamation-triangle mr-2"></i>File Tidak Dapat Ditampilkan</h5>
+                                    <h5><i class="fas fa-exclamation-triangle mr-2"></i>File Tidak Dapat Ditampilkan
+                                    </h5>
                                     <p>Tipe file ini tidak dapat ditampilkan di browser.</p>
-                                    <a href="{{ route('kirim-surat.download', $surat->id) }}" class="btn btn-primary">
+                                    <a href="{{ route('kirim-surat.download', $document->id) }}"
+                                        class="btn btn-primary">
                                         <i class="fas fa-download mr-1"></i> Download File
                                     </a>
                                     {{-- <p class="text-muted">Hubungi admin untuk mengakses file ini.</p> --}}
@@ -216,16 +227,16 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <small class="text-muted">
-                                    <strong>Pengirim:</strong> {{ $surat->user->name ?? 'N/A' }}<br>
-                                    <strong>Tanggal:</strong> {{ $surat->created_at->format('d/m/Y H:i') }}
+                                    <strong>Pengirim:</strong> {{ $document->user->name ?? 'N/A' }}<br>
+                                    <strong>Tanggal:</strong> {{ $document->created_at->format('d/m/Y H:i') }}
                                 </small>
                             </div>
                             <div class="col-md-6 text-right">
                                 <small class="text-muted">
-                                    @if ($surat->read_at)
+                                    @if ($document->read_at)
                                         <i class="fas fa-eye text-success"></i>
-                                        Dibaca oleh {{ $surat->opened_by }} pada
-                                        {{ $surat->read_at->format('d/m/Y H:i') }}
+                                        Dibaca oleh {{ $document->opened_by }} pada
+                                        {{ $document->read_at->format('d/m/Y H:i') }}
                                     @else
                                         <i class="fas fa-eye-slash text-muted"></i> Belum dibaca
                                     @endif
@@ -258,221 +269,307 @@
             }
         </style>
     @endpush --}}
+    <!-- Option 1: Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous">
+    </script>
 
-    @push('scripts')
-        <!-- PDF.js Library -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- PDF.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
-        <script>
-            // Set worker untuk PDF.js
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    <script>
+        // Set worker untuk PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-            // Set permission untuk user
-            window.canDownload = {{ auth()->user()->hasRole('super admin') ? 'true' : 'false' }};
+        function showAlert(type, message) {
+            const alertClass = {
+                'success': 'alert-success',
+                'error': 'alert-danger',
+                'warning': 'alert-warning',
+                'info': 'alert-info'
+            };
 
-            @if ($fileExtension === 'pdf')
-                // PDF Viewer Variables
-                let pdfDoc = null;
-                let pageNum = 1;
-                let pageRendering = false;
-                let pageNumPending = null;
-                let scale = 1.2;
-                const canvas = document.getElementById('pdf-canvas');
-                const ctx = canvas.getContext('2d');
+            const alert = document.createElement('div');
+            alert.className = `alert ${alertClass[type]} alert-dismissible fade show`;
+            alert.role = 'alert';
 
-                // Load PDF
-                const pdfUrl = "{{ route('surat.stream', $surat->id) }}";
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
 
-                pdfjsLib.getDocument(pdfUrl).promise.then(function(pdfDoc_) {
-                    pdfDoc = pdfDoc_;
-                    document.getElementById('page-count').textContent = pdfDoc.numPages;
+            const cardBody = document.querySelector('.card-body');
+            cardBody.insertBefore(alert, cardBody.firstChild);
 
-                    // Enable/disable navigation buttons
-                    document.getElementById('prev-page').disabled = pageNum <= 1;
-                    document.getElementById('next-page').disabled = pageNum >= pdfDoc.numPages;
+            setTimeout(() => {
+                alert.style.opacity = '0';
+                setTimeout(() => {
+                    alert.remove();
+                }, 150);
+            }, 2000);
+        }
 
-                    // Initial page render
-                    renderPage(pageNum);
-                }).catch(function(error) {
-                    console.error('Error loading PDF:', error);
-                    document.getElementById('pdf-canvas-container').innerHTML =
-                        '<div class="alert alert-danger m-3">Error loading PDF file</div>';
+        async function downloadDocument(documentId) {
+            try {
+                const url = `{{ route('documents.download', ':id') }}`.replace(':id', documentId);
+
+                // Lakukan fetch request terlebih dahulu
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
 
-                // Render page
-                function renderPage(num) {
-                    pageRendering = true;
+                // Cek jika response adalah JSON (berarti ada error)
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
 
-                    pdfDoc.getPage(num).then(function(page) {
-                        const viewport = page.getViewport({
-                            scale: scale
-                        });
-                        canvas.height = viewport.height;
-                        canvas.width = viewport.width;
+                    if (response.status === 403) {
+                        // Handle permission error
+                        showAlert('error', data.error || 'Anda tidak memiliki izin untuk mengunduh dokumen ini');
+                        return;
+                    }
 
-                        const renderContext = {
-                            canvasContext: ctx,
-                            viewport: viewport
-                        };
+                    if (response.status === 500) {
+                        // Handle server error
+                        showAlert('error', data.error || 'Terjadi kesalahan saat mengunduh file');
+                        return;
+                    }
+                }
 
-                        const renderTask = page.render(renderContext);
+                // Jika response adalah file download, redirect ke URL
+                if (response.ok) {
+                    window.location.href = url;
+                } else {
+                    alert('Terjadi kesalahan yang tidak diketahui');
+                }
 
-                        renderTask.promise.then(function() {
-                            pageRendering = false;
-                            if (pageNumPending !== null) {
-                                renderPage(pageNumPending);
-                                pageNumPending = null;
-                            }
-                        });
+            } catch (error) {
+                console.error('Error:', error);
+                alert(error);
+            }
+        }
+
+        // Set permission untuk user
+        // window.canDownload = {{ auth()->user()->hasRole('super admin') ? 'true' : 'false' }};
+
+        @if ($fileExtension === 'pdf')
+            // PDF Viewer Variables
+            let pdfDoc = null;
+            let pageNum = 1;
+            let pageRendering = false;
+            let pageNumPending = null;
+            let scale = 1.2;
+            const canvas = document.getElementById('pdf-canvas');
+            const ctx = canvas.getContext('2d');
+
+            // Load PDF
+            const pdfUrl = "{{ route('documents.stream-file', $document->id) }}";
+
+            pdfjsLib.getDocument(pdfUrl).promise.then(function(pdfDoc_) {
+                pdfDoc = pdfDoc_;
+                document.getElementById('page-count').textContent = pdfDoc.numPages;
+
+                // Enable/disable navigation buttons
+                document.getElementById('prev-page').disabled = pageNum <= 1;
+                document.getElementById('next-page').disabled = pageNum >= pdfDoc.numPages;
+
+                // Initial page render
+                renderPage(pageNum);
+            }).catch(function(error) {
+                console.error('Error loading PDF:', error);
+                document.getElementById('pdf-canvas-container').innerHTML =
+                    '<div class="alert alert-danger m-3">Error loading PDF file</div>';
+            });
+
+            // Render page
+            function renderPage(num) {
+                pageRendering = true;
+
+                pdfDoc.getPage(num).then(function(page) {
+                    const viewport = page.getViewport({
+                        scale: scale
                     });
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
 
-                    document.getElementById('page-num').textContent = num;
+                    const renderContext = {
+                        canvasContext: ctx,
+                        viewport: viewport
+                    };
+
+                    const renderTask = page.render(renderContext);
+
+                    renderTask.promise.then(function() {
+                        pageRendering = false;
+                        if (pageNumPending !== null) {
+                            renderPage(pageNumPending);
+                            pageNumPending = null;
+                        }
+                    });
+                });
+
+                document.getElementById('page-num').textContent = num;
+            }
+
+            // Queue rendering
+            function queueRenderPage(num) {
+                if (pageRendering) {
+                    pageNumPending = num;
+                } else {
+                    renderPage(num);
                 }
+            }
 
-                // Queue rendering
-                function queueRenderPage(num) {
-                    if (pageRendering) {
-                        pageNumPending = num;
-                    } else {
-                        renderPage(num);
-                    }
+            // Previous page
+            document.getElementById('prev-page').addEventListener('click', function() {
+                if (pageNum <= 1) return;
+                pageNum--;
+                queueRenderPage(pageNum);
+
+                document.getElementById('prev-page').disabled = pageNum <= 1;
+                document.getElementById('next-page').disabled = false;
+            });
+
+            // Next page
+            document.getElementById('next-page').addEventListener('click', function() {
+                if (pageNum >= pdfDoc.numPages) return;
+                pageNum++;
+                queueRenderPage(pageNum);
+
+                document.getElementById('next-page').disabled = pageNum >= pdfDoc.numPages;
+                document.getElementById('prev-page').disabled = false;
+            });
+
+            // Zoom in
+            document.getElementById('zoom-in').addEventListener('click', function() {
+                if (scale < 3) {
+                    scale += 0.2;
+                    document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
+                    queueRenderPage(pageNum);
                 }
+            });
 
-                // Previous page
-                document.getElementById('prev-page').addEventListener('click', function() {
-                    if (pageNum <= 1) return;
-                    pageNum--;
+            // Zoom out
+            document.getElementById('zoom-out').addEventListener('click', function() {
+                if (scale > 0.5) {
+                    scale -= 0.2;
+                    document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
                     queueRenderPage(pageNum);
+                }
+            });
+        @endif
 
-                    document.getElementById('prev-page').disabled = pageNum <= 1;
-                    document.getElementById('next-page').disabled = false;
-                });
+        // Office Online Viewer for Word documents
+        function viewWithOfficeOnline() {
+            const streamUrl = "{{ route('documents.stream-file', $document->id) }}";
+            const officeUrl =
+                `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(window.location.origin + streamUrl)}`;
 
-                // Next page
-                document.getElementById('next-page').addEventListener('click', function() {
-                    if (pageNum >= pdfDoc.numPages) return;
-                    pageNum++;
-                    queueRenderPage(pageNum);
+            document.getElementById('office-viewer-frame').src = officeUrl;
+            document.getElementById('office-viewer-container').style.display = 'block';
+        }
 
-                    document.getElementById('next-page').disabled = pageNum >= pdfDoc.numPages;
-                    document.getElementById('prev-page').disabled = false;
-                });
+        // Security measures
+        document.addEventListener('keydown', function(e) {
+            // if (!window.canDownload) {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'a' || e.key === 'p' || e.key ===
+                    'u')) {
+                e.preventDefault();
+                alert('Fungsi ini tidak diizinkan untuk role Anda');
+            }
+            if (e.key === 'F12') {
+                e.preventDefault();
+                alert('Developer tools tidak diizinkan');
+            }
+            // }
+        });
 
-                // Zoom in
-                document.getElementById('zoom-in').addEventListener('click', function() {
-                    if (scale < 3) {
-                        scale += 0.2;
-                        document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
-                        queueRenderPage(pageNum);
-                    }
-                });
+        document.addEventListener('contextmenu', function(e) {
+            // if (!window.canDownload) {
+            e.preventDefault();
+            // }
+        });
 
-                // Zoom out
-                document.getElementById('zoom-out').addEventListener('click', function() {
-                    if (scale > 0.5) {
-                        scale -= 0.2;
-                        document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
-                        queueRenderPage(pageNum);
-                    }
-                });
-            @endif
+        // Disable printing
+        window.addEventListener('beforeprint', function(e) {
+            // if (!window.canDownload) {
+            e.preventDefault();
+            alert('Printing tidak diizinkan untuk role Anda');
+            // }
+        });
+    </script>
 
-            // Office Online Viewer for Word documents
+    <script>
+        @if ($docxHtml)
+            // DOCX Zoom functionality
+            let docxZoomLevel = 1.0;
+
+            document.getElementById('zoom-in-docx').addEventListener('click', function() {
+                if (docxZoomLevel < 2.0) {
+                    docxZoomLevel += 0.1;
+                    applyDocxZoom();
+                }
+            });
+
+            document.getElementById('zoom-out-docx').addEventListener('click', function() {
+                if (docxZoomLevel > 0.5) {
+                    docxZoomLevel -= 0.1;
+                    applyDocxZoom();
+                }
+            });
+
+            function applyDocxZoom() {
+                const content = document.getElementById('docx-content');
+                content.style.transform = `scale(${docxZoomLevel})`;
+                content.style.transformOrigin = 'top left';
+                content.style.width = `${100/docxZoomLevel}%`;
+
+                document.getElementById('zoom-level-docx').textContent = Math.round(docxZoomLevel * 100) + '%';
+            }
+        @else
+            // Online viewers functions (same as before)
             function viewWithOfficeOnline() {
-                const streamUrl = "{{ route('surat.stream', $surat->id) }}";
-                const officeUrl =
-                    `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(window.location.origin + streamUrl)}`;
+                const streamUrl = "{{ route('documents.stream-file', $document) }}";
+                const fullUrl = window.location.origin + streamUrl;
+                const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fullUrl)}`;
 
                 document.getElementById('office-viewer-frame').src = officeUrl;
                 document.getElementById('office-viewer-container').style.display = 'block';
             }
 
-            // Security measures
-            document.addEventListener('keydown', function(e) {
-                if (!window.canDownload) {
-                    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'a' || e.key === 'p' || e.key ===
-                            'u')) {
-                        e.preventDefault();
-                        alert('Fungsi ini tidak diizinkan untuk role Anda');
-                    }
-                    if (e.key === 'F12') {
-                        e.preventDefault();
-                        alert('Developer tools tidak diizinkan');
-                    }
-                }
-            });
+            function viewWithGoogleDocs() {
+                const streamUrl = "{{ route('documents.stream-file', $document) }}";
+                const fullUrl = window.location.origin + streamUrl;
+                const googleUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
 
-            document.addEventListener('contextmenu', function(e) {
-                if (!window.canDownload) {
-                    e.preventDefault();
-                }
-            });
+                document.getElementById('google-docs-frame').src = googleUrl;
+                document.getElementById('google-docs-container').style.display = 'block';
+            }
 
-            // Disable printing
-            window.addEventListener('beforeprint', function(e) {
-                if (!window.canDownload) {
-                    e.preventDefault();
-                    alert('Printing tidak diizinkan untuk role Anda');
+            function closeViewer(containerId) {
+                document.getElementById(containerId).style.display = 'none';
+                if (containerId === 'office-viewer-container') {
+                    document.getElementById('office-viewer-frame').src = '';
+                } else if (containerId === 'google-docs-container') {
+                    document.getElementById('google-docs-frame').src = '';
                 }
-            });
+            }
+        @endif
+    </script>
+
+    <!-- Option 2: Separate Popper and Bootstrap JS -->
+    <!--
+        <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"
+            integrity="sha384-IQsoLXl5PILFhosVNubq5LC7Qb9DXgDA9i+tQ8Zj3iwWAwPtgFTxbJ8NT4GN1R8p" crossorigin="anonymous">
         </script>
-
-        <script>
-            @if ($docxHtml)
-                // DOCX Zoom functionality
-                let docxZoomLevel = 1.0;
-
-                document.getElementById('zoom-in-docx').addEventListener('click', function() {
-                    if (docxZoomLevel < 2.0) {
-                        docxZoomLevel += 0.1;
-                        applyDocxZoom();
-                    }
-                });
-
-                document.getElementById('zoom-out-docx').addEventListener('click', function() {
-                    if (docxZoomLevel > 0.5) {
-                        docxZoomLevel -= 0.1;
-                        applyDocxZoom();
-                    }
-                });
-
-                function applyDocxZoom() {
-                    const content = document.getElementById('docx-content');
-                    content.style.transform = `scale(${docxZoomLevel})`;
-                    content.style.transformOrigin = 'top left';
-                    content.style.width = `${100/docxZoomLevel}%`;
-
-                    document.getElementById('zoom-level-docx').textContent = Math.round(docxZoomLevel * 100) + '%';
-                }
-            @else
-                // Online viewers functions (same as before)
-                function viewWithOfficeOnline() {
-                    const streamUrl = "{{ route('surat.stream', $surat) }}";
-                    const fullUrl = window.location.origin + streamUrl;
-                    const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fullUrl)}`;
-
-                    document.getElementById('office-viewer-frame').src = officeUrl;
-                    document.getElementById('office-viewer-container').style.display = 'block';
-                }
-
-                function viewWithGoogleDocs() {
-                    const streamUrl = "{{ route('surat.stream', $surat) }}";
-                    const fullUrl = window.location.origin + streamUrl;
-                    const googleUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
-
-                    document.getElementById('google-docs-frame').src = googleUrl;
-                    document.getElementById('google-docs-container').style.display = 'block';
-                }
-
-                function closeViewer(containerId) {
-                    document.getElementById(containerId).style.display = 'none';
-                    if (containerId === 'office-viewer-container') {
-                        document.getElementById('office-viewer-frame').src = '';
-                    } else if (containerId === 'google-docs-container') {
-                        document.getElementById('google-docs-frame').src = '';
-                    }
-                }
-            @endif
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.min.js"
+            integrity="sha384-cVKIPhGWiC2Al4u+LWgxfKTRIcfu0JTxR+EQDz/bgldoEyl4H0zUF0QKbrJ0EcQF" crossorigin="anonymous">
         </script>
-    @endpush
-@endsection
+        -->
+</body>
+
+</html>

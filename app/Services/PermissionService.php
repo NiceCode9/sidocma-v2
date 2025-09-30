@@ -262,7 +262,7 @@ class PermissionService
 
     public function getAccessibleDocuments(User $user, ?Folder $folder = null): Collection
     {
-        $query = Document::active()->with(['folder', 'uploader', 'category']);
+        $query = Document::active()->with(['folder', 'creator', 'category']);
 
         if ($folder) {
             // Get documents dari folder tertentu

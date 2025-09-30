@@ -42,6 +42,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/documents/share/{document}', [\App\Http\Controllers\DocumentController::class, 'share'])->name('documents.share');
     Route::get('/documents/get-permissions', [\App\Http\Controllers\DocumentController::class, 'getPermissions'])->name('documents.get-permissions');
     Route::post('/documents/set-permissions', [\App\Http\Controllers\DocumentController::class, 'setPermissions'])->name('documents.set-permissions');
+    Route::delete('/documents/destroy-permission/{id}', [\App\Http\Controllers\DocumentController::class, 'removePermission'])->name('documents.remove-permission');
+    Route::get('/documents/{document}/view', [\App\Http\Controllers\DocumentController::class, 'viewFile'])->name('documents.view-file');
+    Route::get('/documents/{document}/stream', [\App\Http\Controllers\DocumentController::class, 'streamFile'])->name('documents.stream-file');
+    Route::get('/documents/{document}/docx-html', [\App\Http\Controllers\DocumentController::class, 'viewDocxHtml'])->name('documents.docx-html');
 
     // Management Surat Routes
     Route::prefix('management-surat')->name('management-surat.')->group(function () {

@@ -313,15 +313,15 @@ class FolderController extends Controller
         // Search documents
         $documents = $this->permissionService->getAccessibleDocuments($user)
             ->filter(function ($document) use ($query) {
-                return stripos($document->name, $query) !== false ||
-                    stripos($document->original_name, $query) !== false;
+                return stripos($document->title, $query) !== false ||
+                    stripos($document->file_name, $query) !== false;
             })
             ->take(10)
             ->map(function ($document) {
                 return [
                     'id' => $document->id,
-                    'name' => $document->name,
-                    'original_name' => $document->original_name,
+                    'name' => $document->title,
+                    'original_name' => $document->file_name,
                     'type' => 'document',
                     'folder_name' => $document->folder->name
                 ];

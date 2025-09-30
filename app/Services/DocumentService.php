@@ -17,7 +17,7 @@ class DocumentService
         Folder $folder,
         User $uploader,
         ?string $description = null,
-        bool $is_later = false,
+        bool $is_letter = false,
         ?string $document_number = null,
         ?int $category = null,
     ): Document {
@@ -38,7 +38,7 @@ class DocumentService
             'document_number' => $document_number,
             'version' => 1,
             'is_active' => true,
-            'is_latter' => $is_later,
+            'is_letter' => $is_letter,
         ]);
 
         $this->createDocumentShare($document, $uploader);
@@ -79,8 +79,10 @@ class DocumentService
     {
         // Soft delete
         $document->update(['is_active' => false]);
-
-        // Log activity
+        if ($document->file_path) {
+            Storage::disk('public')->delete($document->file_path);
+        }
+        $document->delete();
 
         return true;
     }

@@ -231,8 +231,9 @@
                         <div class="form-group">
                             <label>Is Latter</label>
                             <div class="custom-control custom-switch">
-                                <input type="checkbox" class="custom-control-input" id="is_latter" value="1">
-                                <label class="custom-control-label" for="is_latter">Mark as Latter Document</label>
+                                <input type="checkbox" class="custom-control-input" id="is_letter" name="is_letter"
+                                    value="1">
+                                <label class="custom-control-label" for="is_letter">Mark as Latter Document</label>
                             </div>
                             <small class="form-text text-muted">Centang jika dokumen ini adalah surat/dokumen resmi</small>
                         </div>
@@ -340,6 +341,7 @@
                                     <th>Unit</th>
                                     <th>Role</th>
                                     <th>Permission</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -458,7 +460,7 @@
             $('#uploadModal').on('hidden.bs.modal', function() {
                 // Reset form dan checkbox saat modal ditutup
                 $('#uploadForm')[0].reset();
-                $('#is_latter').prop('checked', false);
+                $('#is_letter').prop('checked', false);
                 $('.custom-file-label').text('Pilih file...');
                 $('#uploadProgress').hide();
                 $('.modal-footer button').prop('disabled', false);
@@ -767,7 +769,7 @@
             const icon = getFileIcon(document.extension);
             return `
                 <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
-                    <div class="file-item text-center position-relative" onclick="downloadDocument(${document.id})">
+                    <div class="file-item text-center position-relative" onclick="viewDocument(${document.id})">
                         <!-- Action buttons -->
                         <div class="document-actions position-absolute" style="top: 10px; right: 10px;">
                             <button class="btn btn-sm btn-info btn-circle"
@@ -775,10 +777,15 @@
                                 title="Setting Document Permission">
                                 <i class="fas fa-info-circle"></i>
                             </button>
+                            <button class="btn btn-sm btn-success btn-circle"
+                                    onclick="event.stopPropagation(); downloadDocument(${document.id})"
+                                    title="Download Dokumen">
+                                <i class="fas fa-download"></i>
+                            </button>
                             <button class="btn btn-sm btn-warning btn-circle"
                                     onclick="event.stopPropagation(); showDocumentPermissions(${document.id})"
-                                    title="Share Dokumen">
-                                <i class="fas fa-share"></i>
+                                    title="Setup Document Permissions">
+                                <i class="fas fa-cogs"></i>
                             </button>
                             <button class="btn btn-sm btn-danger btn-circle"
                                     onclick="event.stopPropagation(); deleteDocument(${document.id})"
@@ -805,7 +812,7 @@
             const icon = getFileIcon(document.extension);
             return `
                 <div class="col-12">
-                    <div class="file-item d-flex align-items-center" onclick="downloadDocument(${document.id})">
+                    <div class="file-item d-flex align-items-center" onclick="viewDocument(${document.id})">
                         <i class="${icon} mr-3" style="font-size: 1.5rem;"></i>
                         <div class="flex-grow-1">
                             <div class="folder-name mb-1" style="font-weight: 500;">${document.name}</div>
@@ -818,10 +825,20 @@
                             <small class="text-muted">${document.created_at}</small>
                         </div>
                         <div class="document-actions">
+                            <button class="btn btn-sm btn-info"
+                                onclick="event.stopPropagation(); showDocumentInfo(${document.id})"
+                                title="Setting Document Permission">
+                                <i class="fas fa-info-circle"></i>
+                            </button>
+                            <button class="btn btn-sm btn-success"
+                                    onclick="event.stopPropagation(); downloadDocument(${document.id})"
+                                    title="Download Dokumen">
+                                <i class="fas fa-download"></i>
+                            </button>
                             <button class="btn btn-sm btn-warning"
                                     onclick="event.stopPropagation(); showDocumentPermissions(${document.id})"
-                                    title="Share Dokumen">
-                                <i class="fas fa-share"></i>
+                                    title="Setup Documnet Permission">
+                                <i class="fas fa-cogs"></i>
                             </button>
                             <button class="btn btn-sm btn-danger"
                                     onclick="event.stopPropagation(); deleteDocument(${document.id})"
@@ -1371,17 +1388,9 @@
         function uploadFiles() {
             const files = $('#fileInput')[0].files;
             const description = $('#fileDescription').val().trim();
-            const isLatterChecked = $('#is_latter').is(':checked');
+            const isLetterChecked = $('#is_letter').is(':checked');
             const category = $('#category').val();
             const documentNumber = $('#document_number').val().trim();
-
-            // console.log('Upload started with:');
-            // console.log('- Files count:', files.length);
-            // console.log('- Description:', description);
-            // console.log('- Is Latter:', isLatterChecked);
-            // console.log('- Current Folder ID:', currentFolderId);
-            // console.log('- Category:', category);
-            // console.log('- Document Number:', documentNumber);
 
             if (files.length === 0) {
                 showAlert('warning', 'Pilih minimal satu file!');
@@ -1400,7 +1409,7 @@
                 '{{ csrf_token() }}');
 
             // Penting: Kirim sebagai string, bukan boolean
-            formData.append('is_latter', isLatterChecked ? '1' : '0');
+            formData.append('is_letter', isLetterChecked ? '1' : '0');
             formData.append('category', category);
             formData.append('document_number', documentNumber);
 
@@ -1465,9 +1474,9 @@
 
                         // // Log untuk debugging
                         // if (response.data && response.data.length > 0) {
-                        //     console.log('Uploaded documents is_latter values:');
+                        //     console.log('Uploaded documents is_letter values:');
                         //     response.data.forEach(doc => {
-                        //         console.log(`${doc.name}: is_latter = ${doc.is_latter}`);
+                        //         console.log(`${doc.name}: is_letter = ${doc.is_letter}`);
                         //     });
                         // }
                     } else {
@@ -1692,7 +1701,7 @@
 
             return `
                 <div class="col-12 mb-2">
-                    <div class="file-item d-flex align-items-center" onclick="downloadDocument(${document.id})">
+                    <div class="file-item d-flex align-items-center" onclick="viewDocument(${document.id})">
                         <i class="${icon} mr-3" style="font-size: 1.5rem;"></i>
                         <div class="flex-grow-1">
                             <div class="folder-name mb-1" style="font-weight: 500;">${highlightedName}</div>
@@ -1860,6 +1869,7 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
+                    console.log(response);
                     if (response.success) {
                         showAlert('success', response.message);
                         loadFolderContent(currentFolderId); // Reload current folder
