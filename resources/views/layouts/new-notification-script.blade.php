@@ -37,20 +37,20 @@
 
         setupEchoListeners() {
             @auth
-
             const userId = {{ auth()->id() }};
 
+            // Listen to private channel for document notifications
             window.Echo.private(`App.Models.User.${userId}`)
                 .notification((notification) => {
                     console.log('New document notification:', notification);
                     this.handleNewNotification(notification);
                 });
+
             // Listen to private channel for current user
             window.Echo.private(`suratmasuk.${userId}`)
                 .listen('.surat-masuk', (e) => {
                     console.log('New surat notification:', e);
-                    // this.handleNewNotification(e);
-                    this.reloadSuratMasukData();
+                    this.handleNewNotification(e);
                 });
 
             window.Echo.channel(`surat-readed`)
@@ -67,70 +67,20 @@
         @endauth
     }
 
-    handleNewNotification(data) {
-        // Update count immediately
+    handleNewNotification(notification) {
+        // Increment the notification count
         this.updateNotificationCount(1);
 
         // Show browser notification
-        this.showBrowserNotification('Surat Masuk Baru', data.message || 'Anda memiliki surat masuk baru');
+        const title = 'Notifikasi Baru';
+        const message = notification.message || 'Anda memiliki notifikasi baru.';
+        this.showBrowserNotification(title, message);
 
-        // Add bell animation
+        // Animate the bell icon
         this.animateBell();
 
-        // Show toast notification if available
-        if (typeof toastr !== 'undefined') {
-            toastr.info('Surat masuk baru diterima!', 'Notifikasi');
-        }
-
-        // Reload surat masuk table and stats
+        // Reload surat masuk data if on the relevant page
         this.reloadSuratMasukData();
-    }
-
-    // handleSuratReadNotification(data) {
-    //     // Show browser notification
-    //     this.showBrowserNotification(
-    //         'Surat Telah Dibaca',
-    //         `Surat ${data.surat.no_surat} telah dibaca oleh ${data.surat.opened_by}`
-    //     );
-
-    //     // Show toast notification if available
-    //     if (typeof toastr !== 'undefined') {
-    //         toastr.success(`Surat ${data.surat.no_surat} telah dibaca oleh ${data.opened_by}`, 'Surat Dibaca');
-    //     }
-
-    //     updateNotificationCount(-1);
-
-    //     alert(`Surat ${data.surat.no_surat} telah dibaca oleh ${data.opened_by}`, 'Surat Dibaca');
-    // }
-
-    reloadSuratMasukData() {
-        if (window.location.pathname.includes('management-surat')) {
-            const suratMasukTab = document.getElementById('surat-masuk-tab');
-            const isOnSuratMasukTab = suratMasukTab && suratMasukTab.classList.contains('active');
-
-            if (isOnSuratMasukTab) {
-                if (window.tableSm && typeof window.tableSm.ajax === 'object') {
-                    window.tableSm.ajax.reload(null, false);
-                }
-
-                if (typeof loadSuratMasukStats === 'function') {
-                    loadSuratMasukStats();
-                }
-            }
-        }
-    }
-
-    async loadUnreadCount() {
-        try {
-            const response = await fetch('/notifications/unread-count');
-            const data = await response.json();
-
-            if (data.success) {
-                this.setNotificationCount(data.unread_count);
-            }
-        } catch (error) {
-            console.error('Error loading unread count:', error);
-        }
     }
 
     async loadNotifications() {
@@ -140,7 +90,7 @@
         this.showLoading(true);
 
         try {
-            const response = await fetch('/notifications/list?limit=10');
+            const response = await fetch('/notifications/list');
             const data = await response.json();
 
             if (data.success) {
@@ -173,8 +123,7 @@
         }
 
         const notificationHtml = notifications.map(notification => `
-            <a href="#" class="dropdown-item ${!notification.is_read ? 'notification-item-unread' : ''}"
-               onclick="suratNotificationBell.handleNotificationClick('${notification.id}', event)">
+            <a href="#" class="dropdown-item ${!notification.is_read ? 'notification-item-unread' : ''}">
                 <div class="dropdown-item-icon bg-primary text-white">
                     <i class="fas fa-envelope"></i>
                 </div>
@@ -200,71 +149,38 @@
 
         try {
             await this.markAsRead(notificationId);
-
-            // Optional: redirect to surat detail or management page
-            // window.location.href = '/surat/manage';
         } catch (error) {
             console.error('Error handling notification click:', error);
         }
     }
 
-    async markAsRead(notificationId) {
-        try {
-            const response = await fetch(`/notifications/${notificationId}/mark-read`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
-                        'content')
+    reloadSuratMasukData() {
+        if (window.location.pathname.includes('management-surat')) {
+            const suratMasukTab = document.getElementById('surat-masuk-tab');
+            const isOnSuratMasukTab = suratMasukTab && suratMasukTab.classList.contains('active');
+
+            if (isOnSuratMasukTab) {
+                if (window.tableSm && typeof window.tableSm.ajax === 'object') {
+                    window.tableSm.ajax.reload(null, false);
                 }
-            });
 
-            const data = await response.json();
-
-            if (data.success) {
-                this.updateNotificationCount(-1);
-                // Refresh notifications list after short delay
-                setTimeout(() => this.loadNotifications(), 300);
+                if (typeof loadSuratMasukStats === 'function') {
+                    loadSuratMasukStats();
+                }
             }
-        } catch (error) {
-            console.error('Error marking notification as read:', error);
         }
     }
 
-    async markAllAsRead() {
+    async loadUnreadCount() {
         try {
-            // Show loading state
-            this.markAllReadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
-            this.markAllReadBtn.style.pointerEvents = 'none';
-
-            const response = await fetch('/notifications/mark-all-read', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
-                        'content')
-                }
-            });
-
+            const response = await fetch('/notifications/unread-count');
             const data = await response.json();
 
             if (data.success) {
-                this.setNotificationCount(0);
-                this.loadNotifications();
-
-                if (typeof toastr !== 'undefined') {
-                    toastr.success('Semua notifikasi telah dibaca');
-                }
+                this.setNotificationCount(data.unread_count);
             }
         } catch (error) {
-            console.error('Error marking all notifications as read:', error);
-            if (typeof toastr !== 'undefined') {
-                toastr.error('Error marking notifications as read');
-            }
-        } finally {
-            // Reset button state
-            this.markAllReadBtn.innerHTML = 'Mark All As Read';
-            this.markAllReadBtn.style.pointerEvents = 'auto';
+            console.error('Error loading unread count:', error);
         }
     }
 
@@ -275,14 +191,10 @@
             this.countElement.textContent = count > 99 ? '99+' : count;
             this.countElement.style.display = 'flex';
             this.countElement.classList.remove('hidden');
-
-            // Remove beep class if exists and add our custom badge
             this.bellElement?.classList.remove('beep');
         } else {
             this.countElement.style.display = 'none';
             this.countElement.classList.add('hidden');
-
-            // Remove beep class
             this.bellElement?.classList.remove('beep');
         }
     }

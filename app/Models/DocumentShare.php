@@ -47,7 +47,7 @@ class DocumentShare extends Model
 
     public function markAsRead(): void
     {
-        if (!$this->is_read) {
+        if (is_null($this->read_at)) {
             $this->update([
                 'is_read' => true,
                 'read_at' => now(),

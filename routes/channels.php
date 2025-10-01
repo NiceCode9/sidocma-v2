@@ -3,6 +3,11 @@
 use App\Models\User;
 use Illuminate\Support\Facades\Broadcast;
 
+// User private channel for notifications
+Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
+    return (int) $user->id === (int) $id;
+});
+
 // Channel untuk surat masuk per user
 Broadcast::channel('suratmasuk.{userId}', function ($user, $userId) {
     // Pastikan user yang mengakses adalah user yang sama atau memiliki role tertentu

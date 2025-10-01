@@ -219,6 +219,41 @@
                         </div>
                     </li> --}}
 
+                    {{-- document notification --}}
+                    {{-- <li class="dropdown dropdown-list-toggle">
+                        <a href="#" data-toggle="dropdown"
+                            class="nav-link notification-toggle nav-link-lg position-relative"
+                            id="document-notification-bell">
+                            <i class="far fa-bell"></i>
+                            <span class="notification-badge" id="document-notification-count"
+                                style="display: none;">0</span>
+                        </a>
+
+                        <div class="dropdown-menu dropdown-list dropdown-menu-right">
+                            <div class="dropdown-header">
+                                Surat Masuk
+                                <div class="float-right">
+                                    <a href="#" id="document-mark-all-read" class="text-primary">Mark All As
+                                        Read</a>
+                                </div>
+                            </div>
+
+                            <div class="dropdown-list-content dropdown-list-icons" id="document-notification-list"
+                                style="max-height: 300px; overflow-y: auto;">
+                                <!-- Notifications will be loaded here -->
+                                <div class="text-center py-3" id="document-loading-notifications">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="sr-only">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="dropdown-footer text-center">
+                                <a href="" class="text-primary">View All <i class="fas fa-chevron-right"></i></a>
+                            </div>
+                        </div>
+                    </li> --}}
+
                     <!-- Fixed Notification Bell HTML with Proper Styling -->
                     <li class="dropdown dropdown-list-toggle">
                         <a href="#" data-toggle="dropdown"
@@ -479,6 +514,7 @@
     </script> --}}
 
     @include('layouts.notification-script')
+    {{-- @include('layouts.document-notification-script') --}}
     @stack('scripts')
 </body>
 

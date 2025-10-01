@@ -118,6 +118,11 @@ class Document extends Model
         return $this->expiry_date && $this->expiry_date < now();
     }
 
+    public function documentShare()
+    {
+        return $this->hasMany(DocumentShare::class, 'document_id');
+    }
+
     // Scopes
     public function scopeActive($query)
     {

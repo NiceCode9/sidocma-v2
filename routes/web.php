@@ -70,11 +70,21 @@ Route::middleware('auth')->group(function () {
         Route::get('/{id}/download', [ManagementSuratController::class, 'download'])->name('kirim-surat.download');
     });
 
+    // Documnent Notifications
+    Route::prefix('notifications')->group(function () {
+        Route::get('/unread-count', [\App\Http\Controllers\NotificationController::class, 'getUnreadCount']);
+        Route::get('/list', [\App\Http\Controllers\NotificationController::class, 'getList']);
+        Route::post('/{id}/mark-read', [\App\Http\Controllers\NotificationController::class, 'markAsRead']);
+        Route::post('/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead']);
+        Route::delete('/{id}', [\App\Http\Controllers\NotificationController::class, 'delete']);
+        Route::delete('/clear-all', [\App\Http\Controllers\NotificationController::class, 'clearAll']);
+    });
+
     // Notification routes
-    Route::get('/notifications/unread-count', [ManagementSuratController::class, 'getUnreadCount'])->name('notifications.unread-count');
-    Route::get('/notifications/list', [ManagementSuratController::class, 'getNotifications'])->name('notifications.list');
-    Route::post('/notifications/{id}/mark-read', [ManagementSuratController::class, 'markAsRead'])->name('notifications.mark-read');
-    Route::post('/notifications/mark-all-read', [ManagementSuratController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+    // Route::get('/notifications/unread-count', [ManagementSuratController::class, 'getUnreadCount'])->name('notifications.unread-count');
+    // Route::get('/notifications/list', [ManagementSuratController::class, 'getNotifications'])->name('notifications.list');
+    // Route::post('/notifications/{id}/mark-read', [ManagementSuratController::class, 'markAsRead'])->name('notifications.mark-read');
+    // Route::post('/notifications/mark-all-read', [ManagementSuratController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
 
     Route::get('/surat/{id}/view', [ManagementSuratController::class, 'viewFile'])->name('surat.view');
     Route::get('/surat/{id}/stream', [ManagementSuratController::class, 'streamFile'])->name('surat.stream');

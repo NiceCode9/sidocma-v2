@@ -6,10 +6,12 @@ use App\Events\SuratCreate;
 use App\Models\Document;
 use App\Models\Surat;
 use App\Models\User;
+use App\Notifications\SuratNotification;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\IOFactory;
 use Yajra\DataTables\Facades\DataTables;
@@ -302,6 +304,10 @@ class ManagementSuratController extends Controller
 
         // Broadcast event dengan data surat dan users
         broadcast(new SuratCreate($surat, $superAdmins));
+
+        if ($superAdmins->isNotEmpty()) {
+            Notification::send($superAdmins, new SuratNotification($surat, 'surat_masuk', Auth::user()));
+        }
 
         return response()->json([
             'success' => true,

@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Document;
 use App\Models\DocumentPermission;
 use App\Models\Folder;
+use App\Models\FolderPermission;
+use App\Models\User;
+use App\Notifications\DocumentNotification;
 use App\Services\DocumentPermissionService;
 use App\Services\DocumentService;
 use App\Services\PermissionService;
@@ -12,6 +15,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\IOFactory;
 
@@ -72,6 +76,9 @@ class DocumentController extends Controller
                 );
 
                 $uplaodedDocuments[] = $document;
+
+                // Kirim notifikasi ke users yang memiliki akses ke folder
+                $this->notifyFolderUsers($document, $folder, $user, 'document_uploaded');
             } catch (\Throwable $th) {
                 $errors[] = [
                     'filename' => $file->getClientOriginalName(),
@@ -110,6 +117,70 @@ class DocumentController extends Controller
             ],
         ], 201);
     }
+
+    protected function notifyFolderUsers(Document $document, Folder $folder, User $actor, string $type)
+    {
+        // Get all users with folder permissions (excluding the actor)
+        // Ambil user_ids langsung dari permission
+        $directUserIds = FolderPermission::where('folder_id', $folder->id)
+            ->whereNotNull('user_id')
+            ->pluck('user_id');
+
+        // Ambil user_ids dari unit permissions
+        $unitUserIds = User::whereIn('unit_id', function ($query) use ($folder) {
+            $query->select('unit_id')
+                ->from('folder_permissions')
+                ->where('folder_id', $folder->id)
+                ->whereNotNull('unit_id');
+        })->pluck('id');
+
+        // Gabungkan dan filter
+        $userIds = $directUserIds->merge($unitUserIds)
+            ->unique()
+            ->reject(function ($userId) use ($actor) {
+                return $userId == $actor->id;
+            });
+
+        $users = User::whereIn('id', $userIds)->get();
+
+        // Send notifications
+        Notification::send($users, new DocumentNotification($document, $type, $actor));
+    }
+
+    /**
+     * Notify users who received document permissions
+     */
+    protected function notifyPermissionGranted(Document $document, Request $request, User $actor)
+    {
+        $userIds = $request->input('user_id', []);
+
+        // Get users from roles
+        if ($request->has('role_id')) {
+            $roleUsers = User::whereHas('roles', function ($query) use ($request) {
+                $query->whereIn('id', $request->input('role_id'));
+            })->pluck('id');
+            $userIds = array_merge($userIds, $roleUsers->toArray());
+        }
+
+        // Get users from units
+        if ($request->has('unit_id')) {
+            $unitUsers = User::whereIn('unit_id', $request->input('unit_id'))->pluck('id');
+            $userIds = array_merge($userIds, $unitUsers->toArray());
+        }
+
+        // Remove duplicates and actor
+        $userIds = array_unique($userIds);
+        $userIds = array_diff($userIds, [$actor->id]);
+
+        $users = User::whereIn('id', $userIds)->get();
+
+        Notification::send($users, new DocumentNotification(
+            $document,
+            'document_permission_granted',
+            $actor
+        ));
+    }
+
 
     public function download(Document $document)
     {
