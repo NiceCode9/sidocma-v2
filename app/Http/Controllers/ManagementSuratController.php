@@ -272,6 +272,13 @@ class ManagementSuratController extends Controller
         }
     }
 
+    // public function suratMasukStaff(Request $request)
+    // {
+    //     if ($request->ajax()) {
+    //         $data = Document::where('is_letter', true);
+    //     }
+    // }
+
     public function store(Request $request)
     {
         $request->validate([

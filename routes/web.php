@@ -32,6 +32,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/folders/get-users', [\App\Http\Controllers\FolderController::class, 'getUsers'])->name('folders.get-users');
     Route::get('/folders/get-permission', [\App\Http\Controllers\FolderController::class, 'getPermissionFolder'])->name('folders.get-permission');
     Route::post('/folders/set-permission', [\App\Http\Controllers\FolderController::class, 'setPermissionFolder'])->name('folders.set-permission');
+    Route::delete('/folders/delete-permission/{id}', [\App\Http\Controllers\FolderController::class, 'deletePermissionFolder'])->name('folders.delete-permission');
     Route::get('/folders/info/{folder}', [\App\Http\Controllers\FolderController::class, 'getFolderInfo'])->name('folders.info');
 
     // Document routes
@@ -69,6 +70,10 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{id}', [ManagementSuratController::class, 'destroy'])->name('kirim-surat.destroy');
         Route::get('/{id}/download', [ManagementSuratController::class, 'download'])->name('kirim-surat.download');
     });
+
+    // Route::prefix('surat-masuk')->group(function () {
+    //     Route::get('/', [ManagementSuratController::class, 'suratMasukStaff'])->name('surat-masuk.index');
+    // });
 
     // Documnent Notifications
     Route::prefix('notifications')->group(function () {

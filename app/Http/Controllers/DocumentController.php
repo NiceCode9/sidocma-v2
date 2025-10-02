@@ -373,6 +373,7 @@ class DocumentController extends Controller
 
     public function viewFile(Document $document)
     {
+
         // $document = Document::find($id);
         $user = Auth::user();
         $filePath = Storage::disk('public')->path($document->file_path);
@@ -386,7 +387,7 @@ class DocumentController extends Controller
 
         $docxHtml = null;
         if (in_array($fileExtension, ['docx', 'doc'])) {
-            $docxHtml = $this->convertDocxToHtml($document->id);
+            $docxHtml = $this->convertDocxToHtml($document);
         }
 
         return view('folders.view-document', compact('document', 'fileExtension', 'docxHtml'));

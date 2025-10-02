@@ -51,6 +51,7 @@
                     console.log('New surat notification:', e);
                     // this.handleNewNotification(e);
                     this.reloadSuratMasukData();
+                    this.playNotificationSound();
                 });
 
             window.Echo.channel(`surat-readed`)
@@ -84,6 +85,33 @@
 
         // Reload surat masuk table and stats
         this.reloadSuratMasukData();
+        // Check and request audio permission if needed
+        if ('permissions' in navigator) {
+            navigator.permissions.query({
+                    name: 'microphone'
+                })
+                .then(permissionStatus => {
+                    if (permissionStatus.state === 'granted') {
+                        this.playNotificationSound();
+                    } else if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                        navigator.mediaDevices.getUserMedia({
+                                audio: true
+                            })
+                            .then(() => this.playNotificationSound())
+                            .catch(err => console.log('Audio permission denied:', err));
+                    } else {
+                        this.playNotificationSound();
+                    }
+                });
+        } else {
+            this.playNotificationSound();
+        }
+
+    }
+
+    playNotificationSound() {
+        const audio = new Audio('/notification.wav');
+        audio.play().catch(error => console.log('Error playing notification sound:', error));
     }
 
     // handleSuratReadNotification(data) {

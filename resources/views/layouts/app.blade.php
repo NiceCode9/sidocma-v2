@@ -363,6 +363,9 @@
                             <li class="{{ request()->routeIs('surat.create') ? 'active' : '' }}"><a class="nav-link"
                                     href="{{ route('kirim-surat.index') }}"><i class="fas fa-envelope"></i>
                                     <span>Kirim Surat</span></a></li>
+                            {{-- <li class="{{ request()->routeIs('surat.create') ? 'active' : '' }}"><a class="nav-link"
+                                    href="{{ route('surat-masuk.index') }}"><i class="fas fa-inbox"></i>
+                                    <span>Surat Masuk</span></a></li> --}}
                         @endif
                     </ul>
                 </aside>

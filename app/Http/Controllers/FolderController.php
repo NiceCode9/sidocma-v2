@@ -215,9 +215,9 @@ class FolderController extends Controller
             // Set permissions if provided
             if ($request->has('units') || $request->has('roles') || $request->has('users')) {
                 $this->permissionService->setFolderPermissions($folder, [
-                    'units' => $request->units ?? [],
-                    'roles' => $request->roles ?? [],
-                    'users' => $request->users ?? [],
+                    'units' => $request->input('units', []),
+                    'roles' => $request->input('roles', []),
+                    'users' => $request->input('users', []),
                     'permission_types' => $request->permission_types ?? ['read']
                 ], $user);
             }
@@ -456,6 +456,31 @@ class FolderController extends Controller
                 'success' => false,
                 'message' => 'Gagal menyimpan permission: ' . $e->getMessage()
             ], 422);
+        }
+    }
+
+    public function deletePermissionFolder(string $id)
+    {
+        try {
+            if (!$this->permissionService->canManagePermissions(auth()->user())) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda tidak memiliki izin untuk mengelola izin folder'
+                ], 403);
+            }
+
+            $folderPermission = FolderPermission::find($id);
+            $folderPermission->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Permisson Folder Berhasil dihapus',
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan server. Silahkan hubungi Tim IT',
+            ]);
         }
     }
 }

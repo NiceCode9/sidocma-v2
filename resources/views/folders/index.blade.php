@@ -298,6 +298,7 @@
                                     <th>Unit</th>
                                     <th>Role</th>
                                     <th>Permission</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -898,6 +899,11 @@
                                     <td>${permission.unit ? permission.unit.name : 'N/A'}</td>
                                     <td>${permission.role ? permission.role.name : 'N/A'}</td>
                                     <td>${permission.permission_type}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteFolderPermission(${permission.id}, ${folderId})">
+                                            <i class="fas fa-trash"></i> Hapus
+                                        </button>
+                                    </td>
                                 </tr>
                             `;
                             tbody.append(row);
@@ -909,6 +915,32 @@
                     showAlert('error', 'Gagal memuat data izin folder');
                 });
             // loadPermissionFolder(folderId);
+        }
+
+        function deleteFolderPermission(permissionId, folderId) {
+            if (!confirm('Apakah Anda yakin ingin menghapus izin ini?')) {
+                return;
+            }
+
+            $.ajax({
+                url: `{{ route('folders.delete-permission', ':id') }}`.replace(':id', permissionId),
+                type: 'DELETE',
+                data: {
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showAlert('success', 'Izin berhasil dihapus');
+                        // Refresh permission list
+                        showPermission(folderId);
+                    } else {
+                        showAlert('error', response.message || 'Gagal menghapus izin');
+                    }
+                },
+                error: function() {
+                    showAlert('error', 'Gagal menghapus izin');
+                }
+            });
         }
 
         function setFolderPermission() {
@@ -1334,10 +1366,10 @@
         function createFolder() {
             const name = $('#folderName').val().trim();
             const description = $('#folderDescription').val().trim();
-            const units = $('#folderUnits').val(); // Array of unit IDs
-            const roles = $('#folderRoles').val(); // Array of role IDs
-            const users = $('#folderUsers').val(); // Array of user IDs
-            const permissionType = $('#folderPermissionType').val();
+            const units = $('#folderUnit').val(); // Array of unit IDs
+            const roles = $('#folderRole').val(); // Array of role IDs
+            const users = $('#folderUser').val(); // Array of user IDs
+            const permissionTypes = $('#folderPermissionTypes').val();
 
             if (!name) {
                 showAlert('warning', 'Nama folder harus diisi!');
@@ -1361,7 +1393,7 @@
                 units: units,
                 roles: roles,
                 users: users,
-                permission_type: permissionType,
+                permission_types: permissionTypes,
                 _token: $('meta[name="csrf-token"]').attr('content')
             };
 
