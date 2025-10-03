@@ -594,7 +594,8 @@
         }
 
         function showFolderInfo(folderId) {
-            $.get(`{{ url('folders/info') }}/${folderId}`)
+            const url = `{{ route('folders.info', ':id') }}`.replace(':id', folderId);
+            $.get(url)
                 .done(function(response) {
                     if (response.success) {
                         const folder = response.folder;
@@ -644,7 +645,8 @@
         }
 
         function showDocumentInfo(documentId) {
-            $.get(`{{ url('documents/info') }}/${documentId}`)
+            const url = `{{ route('documents.info', ':id') }}`.replace(':id', documentId);
+            $.get(url)
                 .done(function(response) {
                     if (response.success) {
                         const document = response.document;
@@ -878,7 +880,7 @@
 
         function showPermission(folderId) {
             $('#permissionModal').modal('show');
-            $.get(`{{ url('folders/get-permission') }}`, {
+            $.get(`{{ route('folders.get-permission') }}`, {
                     folder_id: folderId
                 })
                 .done(function(response) {
@@ -1093,8 +1095,8 @@
             showLoadMoreSpinner();
 
             const url = currentFolderId ?
-                `{{ url('folders/browse') }}/${currentFolderId}` :
-                `{{ url('folders/browse') }}`;
+                `{{ route('folders.browse', ':id') }}`.replace(':id', currentFolderId) :
+                `{{ route('folders.browse') }}`;
 
             $.get(url, {
                     offset: currentOffset,
@@ -1869,8 +1871,9 @@
                 return;
             }
 
+            const url = `{{ route('folders.destroy', ':id') }}`.replace(':id', folderId);
             $.ajax({
-                url: `{{ url('folders') }}/${folderId}`,
+                url: url,
                 type: 'DELETE',
                 data: {
                     _token: '{{ csrf_token() }}'
@@ -1896,8 +1899,9 @@
                 return;
             }
 
+            const url = `{{ route('documents.destroy', ':id') }}`.replace(':id', documentId);
             $.ajax({
-                url: `{{ url('documents') }}/${documentId}`,
+                url: url,
                 type: 'DELETE',
                 data: {
                     _token: '{{ csrf_token() }}'

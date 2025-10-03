@@ -2,7 +2,7 @@
     function showDocumentPermissions(documentId) {
         $('#documentPermissionModal').modal('show');
 
-        $.get(`{{ url('/documents/get-permissions') }}`, {
+        $.get(`{{ route('documents.get-permissions') }}`, {
                 document_id: documentId,
             })
             .done((response) => {
@@ -250,7 +250,7 @@
         }
 
         $.ajax({
-            url: `{{ url('/documents/destroy-permission') }}/${permissionId}`,
+            url: `{{ route('documents.remove-permission') }}/${permissionId}`,
             type: 'DELETE',
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content')

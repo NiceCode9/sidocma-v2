@@ -77,10 +77,10 @@ Route::middleware('auth')->group(function () {
 
     // Documnent Notifications
     Route::prefix('notifications')->group(function () {
-        Route::get('/unread-count', [\App\Http\Controllers\NotificationController::class, 'getUnreadCount']);
-        Route::get('/list', [\App\Http\Controllers\NotificationController::class, 'getList']);
-        Route::post('/{id}/mark-read', [\App\Http\Controllers\NotificationController::class, 'markAsRead']);
-        Route::post('/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead']);
+        Route::get('/unread-count', [\App\Http\Controllers\NotificationController::class, 'getUnreadCount'])->name('notifications.unread-count');
+        Route::get('/list', [\App\Http\Controllers\NotificationController::class, 'getList'])->name('notifications.list');
+        Route::post('/{id}/mark-read', [\App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
+        Route::post('/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
         Route::delete('/{id}', [\App\Http\Controllers\NotificationController::class, 'delete']);
         Route::delete('/clear-all', [\App\Http\Controllers\NotificationController::class, 'clearAll']);
     });

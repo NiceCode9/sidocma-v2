@@ -150,7 +150,7 @@
 
     async loadUnreadCount() {
         try {
-            const response = await fetch('/notifications/unread-count');
+            const response = await fetch('{{ route('notifications.unread-count') }}');
             const data = await response.json();
 
             if (data.success) {
@@ -168,7 +168,7 @@
         this.showLoading(true);
 
         try {
-            const response = await fetch('/notifications/list?limit=10');
+            const response = await fetch('{{ route('notifications.list', ['limit' => 10]) }}');
             const data = await response.json();
 
             if (data.success) {
@@ -238,7 +238,8 @@
 
     async markAsRead(notificationId) {
         try {
-            const response = await fetch(`/notifications/${notificationId}/mark-read`, {
+            const url = `{{ route('notifications.mark-read', ':id') }}`.replace(':id', notificationId);
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -265,7 +266,7 @@
             this.markAllReadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
             this.markAllReadBtn.style.pointerEvents = 'none';
 
-            const response = await fetch('/notifications/mark-all-read', {
+            const response = await fetch('{{ route('notifications.mark-all-read') }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -379,20 +380,20 @@
     // Add additional CSS for dropdown item indicator
     const additionalStyle = document.createElement('style');
     additionalStyle.textContent = `
-    .dropdown-item-indicator {
-        position: absolute;
-        top: 50%;
-        right: 10px;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        transform: translateY(-50%);
-    }
+        .dropdown-item-indicator {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            transform: translateY(-50%);
+        }
 
-    .dropdown-item {
-        position: relative;
-        padding-right: 30px;
-    }
-`;
+        .dropdown-item {
+            position: relative;
+            padding-right: 30px;
+        }
+    `;
     document.head.appendChild(additionalStyle);
 </script>
