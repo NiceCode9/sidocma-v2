@@ -148,57 +148,43 @@
         }
     }
 
-    loadUnreadCount() {
-        // returns a jQuery promise
-        return $.ajax({
-            url: "{{ route('notifications.unread-count') }}",
-            method: 'GET',
-            dataType: 'json'
-        }).done((data) => {
-            if (data && data.success) {
+    async loadUnreadCount() {
+        try {
+            const response = await fetch('/notifications/unread-count');
+            const data = await response.json();
+
+            if (data.success) {
                 this.setNotificationCount(data.unread_count);
             }
-        }).fail((jqXHR, textStatus, errorThrown) => {
-            console.error('Error loading unread count:', textStatus, errorThrown);
-        });
+        } catch (error) {
+            console.error('Error loading unread count:', error);
+        }
     }
 
-    loadNotifications() {
-        if (!this.listElement) return $.Deferred().reject().promise();
+    async loadNotifications() {
+        if (!this.listElement) return;
 
         // Show loading
         this.showLoading(true);
 
-        return $.ajax({
-            url: "{{ route('notifications.list') }}",
-            method: 'GET',
-            data: {
-                limit: 10
-            },
-            dataType: 'json'
-        }).done((data) => {
-            if (data && data.success) {
+        try {
+            const response = await fetch('/notifications/list?limit=10');
+            const data = await response.json();
+
+            if (data.success) {
                 this.renderNotifications(data.notifications);
-            } else {
-                this.listElement.innerHTML = `
-                    <div class="text-center py-3 text-muted">
-                        <p class="mb-0">Tidak ada notifikasi</p>
-                    </div>
-                `;
             }
-        }).fail((jqXHR, textStatus, errorThrown) => {
-            console.error('Error loading notifications:', textStatus, errorThrown);
-            if (this.listElement) {
-                this.listElement.innerHTML = `
-                    <div class="text-center py-3 text-danger">
-                        <i class="fas fa-exclamation-triangle mb-2"></i>
-                        <p class="mb-0">Error loading notifications</p>
-                    </div>
-                `;
-            }
-        }).always(() => {
+        } catch (error) {
+            console.error('Error loading notifications:', error);
+            this.listElement.innerHTML = `
+                <div class="text-center py-3 text-danger">
+                    <i class="fas fa-exclamation-triangle mb-2"></i>
+                    <p class="mb-0">Error loading notifications</p>
+                </div>
+            `;
+        } finally {
             this.showLoading(false);
-        });
+        }
     }
 
     renderNotifications(notifications) {
@@ -244,75 +230,70 @@
             await this.markAsRead(notificationId);
 
             // Optional: redirect to surat detail or management page
-            // window.location.href = "{{ route('management-surat.index') }}";
+            // window.location.href = '/surat/manage';
         } catch (error) {
             console.error('Error handling notification click:', error);
         }
     }
 
-    markAsRead(notificationId) {
-        const url = "{{ url('/notifications') }}" + '/' + notificationId + '/mark-read';
-        const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    async markAsRead(notificationId) {
+        try {
+            const response = await fetch(`/notifications/${notificationId}/mark-read`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                        'content')
+                }
+            });
 
-        return $.ajax({
-            url: url,
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': token
-            },
-            dataType: 'json'
-        }).done((data) => {
-            if (data && data.success) {
+            const data = await response.json();
+
+            if (data.success) {
                 this.updateNotificationCount(-1);
                 // Refresh notifications list after short delay
                 setTimeout(() => this.loadNotifications(), 300);
             }
-        }).fail((jqXHR, textStatus, errorThrown) => {
-            console.error('Error marking notification as read:', textStatus, errorThrown);
-        });
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+        }
     }
 
-    markAllAsRead() {
-        const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-        // Show loading state
-        if (this.markAllReadBtn) {
+    async markAllAsRead() {
+        try {
+            // Show loading state
             this.markAllReadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
             this.markAllReadBtn.style.pointerEvents = 'none';
-        }
 
-        return $.ajax({
-            url: "{{ route('notifications.mark-all-read') }}",
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': token
-            },
-            dataType: 'json'
-        }).done((data) => {
-            if (data && data.success) {
+            const response = await fetch('/notifications/mark-all-read', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                        'content')
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
                 this.setNotificationCount(0);
                 this.loadNotifications();
 
                 if (typeof toastr !== 'undefined') {
                     toastr.success('Semua notifikasi telah dibaca');
                 }
-            } else {
-                if (typeof toastr !== 'undefined') {
-                    toastr.error('Error marking notifications as read');
-                }
             }
-        }).fail((jqXHR, textStatus, errorThrown) => {
-            console.error('Error marking all notifications as read:', textStatus, errorThrown);
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
             if (typeof toastr !== 'undefined') {
                 toastr.error('Error marking notifications as read');
             }
-        }).always(() => {
+        } finally {
             // Reset button state
-            if (this.markAllReadBtn) {
-                this.markAllReadBtn.innerHTML = 'Mark All As Read';
-                this.markAllReadBtn.style.pointerEvents = 'auto';
-            }
-        });
+            this.markAllReadBtn.innerHTML = 'Mark All As Read';
+            this.markAllReadBtn.style.pointerEvents = 'auto';
+        }
     }
 
     setNotificationCount(count) {
