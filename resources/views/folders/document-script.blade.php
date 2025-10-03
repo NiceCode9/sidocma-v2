@@ -250,7 +250,7 @@
         }
 
         $.ajax({
-            url: `{{ route('documents.remove-permission') }}/${permissionId}`,
+            url: `{{ route('documents.remove-permission', ':id') }}`.replace(':id', permissionId),
             type: 'DELETE',
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content')
