@@ -482,8 +482,8 @@
             currentFolderId = folderId;
 
             const url = folderId ?
-                `{{ url('folders/browse') }}/${folderId}` :
-                `{{ url('folders/browse') }}`;
+                `{{ route('folders.browse', ':id') }}`.replace(':id', folderId) :
+                `{{ route('folders.browse') }}`;
 
             // console.log('Loading folder:', folderId, 'URL:', url);
 
@@ -1397,7 +1397,9 @@
                 _token: $('meta[name="csrf-token"]').attr('content')
             };
 
-            $.post('/folders', data)
+            const url = '{{ route('folders.store') }}';
+
+            $.post(url, data)
                 .done(function(response) {
                     if (response.success) {
                         $('#createFolderModal').modal('hide');
