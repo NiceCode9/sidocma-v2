@@ -923,7 +923,7 @@
             }
 
             $.ajax({
-                url: `{{ route('folders.delete-permission', ':id') }}`.replace(':id', permissionId),
+                url: "{{ url('/folders/delete-permission') }}" + '/' + permissionId,
                 type: 'DELETE',
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content')
@@ -1557,48 +1557,69 @@
                 });
         }
 
-        async function downloadDocument(documentId) {
-            try {
-                const url = `{{ route('documents.download', ':id') }}`.replace(':id', documentId);
+        function downloadDocument(documentId) {
+            const url = "{{ url('/documents') }}" + '/' + documentId + '/download';
 
-                // Lakukan fetch request terlebih dahulu
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
+            // Lakukan AJAX request terlebih dahulu untuk mengecek apakah server merespon JSON (error)
+            $.ajax({
+                url: url,
+                method: 'GET',
+                dataType: 'text', // ambil sebagai teks sehingga kita dapat memeriksa header content-type
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).done(function(data, textStatus, jqXHR) {
+                const contentType = jqXHR.getResponseHeader('content-type') || '';
+
+                if (contentType.includes('application/json')) {
+                    // Jika response JSON, parse dan tampilkan error sesuai status
+                    let json = {};
+                    try {
+                        json = JSON.parse(data);
+                    } catch (e) {
+                        console.error('JSON parse error:', e);
                     }
-                });
 
-                // Cek jika response adalah JSON (berarti ada error)
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const data = await response.json();
-
-                    if (response.status === 403) {
-                        // Handle permission error
-                        showAlert('error', data.error || 'Anda tidak memiliki izin untuk mengunduh dokumen ini');
+                    if (jqXHR.status === 403) {
+                        showAlert('error', json.error || 'Anda tidak memiliki izin untuk mengunduh dokumen ini');
                         return;
                     }
 
-                    if (response.status === 500) {
-                        // Handle server error
+                    if (jqXHR.status === 500) {
+                        showAlert('error', json.error || 'Terjadi kesalahan saat mengunduh file');
+                        return;
+                    }
+
+                    // Fallback: jika JSON tapi tidak ter-handle, tunjukkan pesan umum
+                    showAlert('error', json.message || 'Gagal mengunduh dokumen');
+                    return;
+                }
+
+                // Jika bukan JSON, asumsikan file siap didownload -> redirect ke URL agar browser memproses download
+                if (jqXHR.status >= 200 && jqXHR.status < 300) {
+                    window.location.href = url;
+                } else {
+                    alert('Terjadi kesalahan yang tidak diketahui');
+                }
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                console.error('Error:', errorThrown || textStatus, jqXHR);
+
+                // Jika server mengembalikan JSON error di fail handler
+                if (jqXHR.responseJSON) {
+                    const data = jqXHR.responseJSON;
+                    if (jqXHR.status === 403) {
+                        showAlert('error', data.error || 'Anda tidak memiliki izin untuk mengunduh dokumen ini');
+                        return;
+                    }
+                    if (jqXHR.status === 500) {
                         showAlert('error', data.error || 'Terjadi kesalahan saat mengunduh file');
                         return;
                     }
                 }
 
-                // Jika response adalah file download, redirect ke URL
-                if (response.ok) {
-                    window.location.href = url;
-                } else {
-                    alert('Terjadi kesalahan yang tidak diketahui');
-                }
-
-            } catch (error) {
-                console.error('Error:', error);
                 alert('Terjadi kesalahan jaringan atau server tidak merespon');
-            }
+            });
         }
 
         function performSearch(searchTerm) {
