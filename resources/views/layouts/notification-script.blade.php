@@ -110,7 +110,8 @@
     }
 
     playNotificationSound() {
-        const audio = new Audio('/notification.wav');
+        let path = "{{ asset('notification.wav') }}";
+        const audio = new Audio(path);
         audio.play().catch(error => console.log('Error playing notification sound:', error));
     }
 

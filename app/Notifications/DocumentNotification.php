@@ -41,7 +41,7 @@ class DocumentNotification extends Notification implements ShouldQueue
         return ['database', 'broadcast'];
     }
 
-    public function toDatabase($notifiable)
+    public function toArray($notifiable)
     {
         return [
             'type' => $this->type ?? 'document_uploaded',

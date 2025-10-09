@@ -79,7 +79,9 @@ class NotificationController extends Controller
             $surat = Surat::find($notification->data['surat_id']);
             $surat->markAsRead();
             event(new \App\Events\SuratReaded($surat, auth()->user()));
-        } else {
+        }
+
+        if ($notification->data['type'] === 'document_uploaded') {
             $document = Document::find($notification->data['document_id']);
             $document->documentShare->markAsRead();
         }
