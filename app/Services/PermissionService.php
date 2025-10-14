@@ -278,6 +278,10 @@ class PermissionService
 
     public function canAccessDocument(User $user, Document $document, $action = 'read'): bool
     {
+        // Konversi action ke array jika berupa string
+        $actions = is_array($action) ? $action : [$action];
+
+        // Jika tidak ada permission dan action termasuk 'read', return true
         if (!$document->permissions()->exists() && $action == 'read') return true;
 
         // Creator folder selalu bisa akses
@@ -288,7 +292,7 @@ class PermissionService
 
         // Cek permission berdasarkan kombinasi yang ada di database
         $hasPermission = DocumentPermission::where('document_id', $document->id)
-            ->where('permission_type', $action)
+            ->whereIn('permission_type', $actions)
             ->where(function ($query) use ($user) {
                 $userRoleIds = $user->roles->pluck('id')->toArray();
 
@@ -340,9 +344,31 @@ class PermissionService
         return $hasPermission;
     }
 
+    public function canAccessDocumentWithAllActions(User $user, Document $document, array $actions): bool
+    {
+        // Validasi semua action harus terpenuhi
+        foreach ($actions as $action) {
+            if (!$this->canAccessDocument($user, $document, $action)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public function canAccessDocumentWithAnyAction(User $user, Document $document, array $actions): bool
+    {
+        // Salah satu action terpenuhi sudah cukup (OR logic)
+        foreach ($actions as $action) {
+            if ($this->canAccessDocument($user, $document, $action)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public function canManagePermissions(User $user): bool
     {
-        return $user->hasRole(['super admin', 'direktur']);
+        return $user->hasAnyRole(['super admin', 'direktur']);
     }
 
     public function canUploadDocument(User $user, Folder $folder): bool

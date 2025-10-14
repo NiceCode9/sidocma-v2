@@ -373,6 +373,9 @@ class DocumentController extends Controller
 
     public function viewFile(Document $document)
     {
+        if (!$this->permissionService->canAccessDocument(Auth::user(), $document)) {
+            return abort(403, 'Anda tidak memiliki izin untuk melihat file ini.');
+        }
 
         // $document = Document::find($id);
         $user = Auth::user();

@@ -290,7 +290,7 @@
                             class="nav-link dropdown-toggle nav-link-lg nav-link-user">
                             <img alt="image" src="{{ asset('/stisla') }}/assets/img/avatar/avatar-1.png"
                                 class="rounded-circle mr-1">
-                            <div class="d-sm-none d-lg-inline-block">Hi, Ujang Maman</div>
+                            <div class="d-sm-none d-lg-inline-block">{{ Str::limit(auth()->user()->name, 20) }}</div>
                         </a>
                         <div class="dropdown-menu dropdown-menu-right">
                             <div class="dropdown-title">Logged in 5 min ago</div>
@@ -360,12 +360,12 @@
                                         class="fas fa-paper-plane"></i>
                                     <span>Management Surat</span></a></li>
                         @else
-                            <li class="{{ request()->routeIs('surat.create') ? 'active' : '' }}"><a class="nav-link"
+                            <li class="{{ request()->routeIs('kirim-surat*') ? 'active' : '' }}"><a class="nav-link"
                                     href="{{ route('kirim-surat.index') }}"><i class="fas fa-envelope"></i>
                                     <span>Kirim Surat</span></a></li>
-                            {{-- <li class="{{ request()->routeIs('surat.create') ? 'active' : '' }}"><a class="nav-link"
+                            <li class="{{ request()->routeIs('surat-masuk*') ? 'active' : '' }}"><a class="nav-link"
                                     href="{{ route('surat-masuk.index') }}"><i class="fas fa-inbox"></i>
-                                    <span>Surat Masuk</span></a></li> --}}
+                                    <span>Surat Masuk</span></a></li>
                         @endif
                     </ul>
                 </aside>

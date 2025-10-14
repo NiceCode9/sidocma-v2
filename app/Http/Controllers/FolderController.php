@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 class FolderController extends Controller
@@ -149,22 +150,66 @@ class FolderController extends Controller
         ]);
     }
 
+    public function list()
+    {
+        $folders = Folder::active()
+            ->orderBy('level')
+            ->orderBy('name')
+            ->get(['id', 'name', 'level', 'parent_id']);
+
+        return response()->json([
+            'success' => true,
+            'folders' => $folders
+        ]);
+    }
+
     public function getFolderInfo(string $id)
     {
-        $folder = Folder::find($id);
-        if ($folder && !$this->permissionService->canAccessFolder(Auth::user(), $folder)) {
+        $folder = Folder::with(['parent', 'creator'])->find($id);
+
+        // Cek apakah folder ada
+        if (!$folder) {
             return response()->json([
                 'success' => false,
-                'message' => 'Anda tidak memiliki akses ke folder ini',
-            ], 200); // Kembalikan HTTP 200 agar ditangani oleh .done()
+                'message' => 'Folder tidak ditemukan',
+            ], 404);
         }
 
+        // Cek permission - user harus bisa manage permissions untuk edit
+        // Tapi untuk view info saja, mungkin bisa lebih relaxed
+        $canEdit = $this->permissionService->canManagePermissions(Auth::user());
+
+        // Jika tidak punya akses sama sekali (bahkan untuk view)
+        // if (!$this->permissionService->canAccessFolder(Auth::user(), $folder)) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'Akses ditolak',
+        //     ], 403);
+        // }
+
         $folderInfo = [
+            'id' => $folder->id,
             'name' => $folder->name,
             'description' => $folder->description,
-            'created_at' => Carbon::parse($folder->created_at)->locale('id')->format('d M Y'),
+            'parent_id' => $folder->parent_id,
+            'parent' => $folder->parent ? [
+                'id' => $folder->parent->id,
+                'name' => $folder->parent->name,
+            ] : null,
+            'color' => $folder->color,
+            'icon' => $folder->icon,
+            'is_active' => $folder->is_active,
+            'level' => $folder->level,
+            'path' => $folder->path,
+            'created_at' => Carbon::parse($folder->created_at)->locale('id')->format('d M Y H:i'),
+            'updated_at' => Carbon::parse($folder->updated_at)->locale('id')->format('d M Y H:i'),
+            'creator' => $folder->creator ? [
+                'id' => $folder->creator->id,
+                'name' => $folder->creator->name,
+            ] : null,
             'subfolders_count' => $folder->children()->active()->count(),
             'document_count' => $folder->documents()->active()->count(),
+            'can_edit' => $canEdit, // Kirim info apakah user bisa edit
         ];
 
         return response()->json([
@@ -245,6 +290,187 @@ class FolderController extends Controller
                 'success' => false,
                 'message' => 'Gagal membuat folder: ' . $e->getMessage()
             ], 422);
+        }
+    }
+
+
+
+    // ============================================================
+    // METHOD UPDATE - untuk save perubahan folder
+    // ============================================================
+
+    public function update(Request $request, string $id)
+    {
+        $folder = Folder::find($id);
+
+        if (!$folder) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Folder tidak ditemukan',
+            ], 404);
+        }
+
+        // Cek permission
+        if (!$this->permissionService->canManagePermissions(Auth::user())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses untuk mengupdate folder',
+            ], 403);
+        }
+
+        // Validasi
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'parent_id' => 'nullable|exists:folders,id',
+            'color' => 'nullable|string|max:7',
+            'icon' => 'nullable|string|max:50',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        // Validasi: Cegah folder menjadi parent dari dirinya sendiri atau descendant-nya
+        if ($request->parent_id) {
+            if ($request->parent_id == $id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Folder tidak bisa menjadi parent dari dirinya sendiri',
+                ], 422);
+            }
+
+            // Cek apakah parent_id adalah descendant dari folder ini
+            $parent = Folder::find($request->parent_id);
+            if ($parent && str_contains($parent->path, '/' . $id . '/')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Folder tidak bisa dipindahkan ke dalam sub-foldernya sendiri',
+                ], 422);
+            }
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Update folder
+            $folder->name = $validated['name'];
+            $folder->description = $validated['description'] ?? null;
+            $folder->parent_id = $validated['parent_id'] ?? null;
+            $folder->color = $validated['color'] ?? $folder->color;
+            $folder->icon = $validated['icon'] ?? $folder->icon;
+            $folder->is_active = $request->has('is_active') ? (bool) $validated['is_active'] : $folder->is_active;
+            $folder->updated_by = Auth::id();
+
+            // Generate slug jika ada
+            if ($request->filled('name') && $folder->isDirty('name')) {
+                $folder->slug = Str::slug($validated['name']);
+            }
+
+            $folder->save();
+
+            // Update path jika parent berubah
+            if ($folder->wasChanged('parent_id')) {
+                $folder->updatePath();
+
+                // Update path untuk semua children
+                $this->updateChildrenPath($folder);
+            }
+
+            DB::commit();
+
+            // Log activity jika menggunakan activity log
+            activity()
+                ->performedOn($folder)
+                ->causedBy(Auth::user())
+                ->withProperties(['attributes' => $folder->getChanges()])
+                ->log('Folder diupdate');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Folder berhasil diupdate',
+                'folder' => $folder->fresh(['parent', 'creator']),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengupdate folder: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
+    // ============================================================
+    // HELPER METHOD - Update path untuk semua children
+    // ============================================================
+
+    private function updateChildrenPath(Folder $folder)
+    {
+        $children = $folder->children()->get();
+
+        foreach ($children as $child) {
+            $child->updatePath();
+
+            // Rekursif untuk update path children dari children
+            if ($child->children()->exists()) {
+                $this->updateChildrenPath($child);
+            }
+        }
+    }
+
+
+    // ============================================================
+    // ALTERNATIVE UPDATE METHOD (Lebih Simple)
+    // ============================================================
+    // Jika Anda tidak ingin terlalu kompleks dengan path update
+    // ============================================================
+
+    public function updateSimple(Request $request, string $id)
+    {
+        $folder = Folder::find($id);
+
+        if (!$folder) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Folder tidak ditemukan',
+            ], 404);
+        }
+
+        // Cek permission
+        if (!$this->permissionService->canManagePermissions(Auth::user())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses untuk mengupdate folder',
+            ], 403);
+        }
+
+        // Validasi
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'parent_id' => 'nullable|exists:folders,id|not_in:' . $id,
+            'color' => 'nullable|string|max:7',
+            'icon' => 'nullable|string|max:50',
+            'is_active' => 'nullable|boolean',
+        ], [
+            'parent_id.not_in' => 'Folder tidak bisa menjadi parent dari dirinya sendiri',
+        ]);
+
+        try {
+            // Update hanya field yang ada
+            $folder->fill($validated);
+            $folder->is_active = $request->has('is_active') ? (bool) $request->is_active : $folder->is_active;
+            $folder->updated_by = Auth::id();
+            $folder->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Folder berhasil diupdate',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengupdate folder: ' . $e->getMessage(),
+            ], 500);
         }
     }
 

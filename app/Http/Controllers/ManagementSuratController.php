@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Events\SuratCreate;
 use App\Models\Document;
+use App\Models\DocumentPermission;
 use App\Models\Surat;
 use App\Models\User;
 use App\Notifications\SuratNotification;
+use App\Services\PermissionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -638,7 +640,7 @@ class ManagementSuratController extends Controller
         background: white;
         border: 1px solid #ddd;
         border-radius: 4px;
-    ">' . $html . '</div>';
+        ">' . $html . '</div>';
 
         return $html;
     }
@@ -666,5 +668,99 @@ class ManagementSuratController extends Controller
             'Cache-Control' => 'no-store, no-cache, must-revalidate',
             'X-Frame-Options' => 'SAMEORIGIN',
         ]);
+    }
+
+    public function suratMasukStaff(Request $request)
+    {
+        if ($request->ajax()) {
+            $user = Auth::user();
+
+            // Ambil semua dokumen surat masuk aktif
+            $allDocuments = Document::with([
+                'folder',
+                'category',
+                'creator',
+                'permissions'
+            ])
+                ->where('is_letter', true)
+                ->where('is_active', true)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Filter dokumen berdasarkan permission menggunakan helper method
+            // $documents = $allDocuments->filter(function ($document) use ($user) {
+            //     return app(PermissionService::class)->canAccessDocument($user, $document, 'read');
+            // });
+
+            // OPSI 1: Filter dokumen yang bisa read ATAU download (OR logic)
+            $documents = $allDocuments->filter(function ($document) use ($user) {
+                return app(PermissionService::class)
+                    ->canAccessDocument($user, $document, ['read', 'download']);
+            });
+
+            // OPSI 2: Filter dokumen yang bisa read DAN download (AND logic)
+            // $documents = $allDocuments->filter(function ($document) use ($user) {
+            //     return app(PermissionService::class)
+            //         ->canAccessDocumentWithAllActions($user, $document, ['read', 'download']);
+            // });
+
+            // OPSI 3: Filter hanya yang bisa read saja
+            // $documents = $allDocuments->filter(function ($document) use ($user) {
+            //     return app(PermissionService::class)
+            //         ->canAccessDocument($user, $document, 'read');
+            // });
+
+            return DataTables::of($documents)
+                ->addIndexColumn()
+                ->addColumn('document_number', function ($row) {
+                    return $row->document_number ?? '-';
+                })
+                ->addColumn('title', function ($row) {
+                    $confidential = $row->is_confidential
+                        ? '<span class="badge badge-danger ml-1">Confidential</span>'
+                        : '';
+                    return $row->title . $confidential;
+                })
+                ->addColumn('category', function ($row) {
+                    return $row->category ? $row->category->name : '-';
+                })
+                ->addColumn('file_info', function ($row) {
+                    return '<div class="text-sm">' .
+                        '<div>' . $row->file_name . '</div>' .
+                        '<div class="text-muted">' . $row->formatted_file_size . '</div>' .
+                        '</div>';
+                })
+                ->addColumn('creator', function ($row) {
+                    return $row->creator ? $row->creator->name : '-';
+                })
+                ->addColumn('status', function ($row) {
+                    if ($row->shares) {
+                        return $row->shares->is_read
+                            ? '<span class="badge badge-success"><i class="fas fa-check"></i> Dibaca</span>'
+                            : '<span class="badge badge-warning"><i class="fas fa-times"></i> Belum Dibaca</span>';
+                    }
+                    return '-';
+                })
+                ->addColumn('created_at', function ($row) {
+                    return $row->created_at->format('d M Y H:i');
+                })
+                ->addColumn('action', function ($row) {
+                    $btn = '<div class="btn-group" role="group">';
+                    $btn .= '<a href="' . route('documents.view-file', $row->id) . '"
+                     class="btn btn-info btn-sm" title="View">
+                     <i class="fas fa-eye"></i>
+                     </a>';
+                    $btn .= '<a href="' . route('documents.download', $row->id) . '"
+                     class="btn btn-success btn-sm" title="Download">
+                     <i class="fas fa-download"></i>
+                     </a>';
+                    $btn .= '</div>';
+                    return $btn;
+                })
+                ->rawColumns(['title', 'status', 'file_info', 'action'])
+                ->make(true);
+        }
+
+        return view('surat.staff.surat-masuk');
     }
 }

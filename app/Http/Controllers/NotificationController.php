@@ -83,7 +83,7 @@ class NotificationController extends Controller
 
         if ($notification->data['type'] === 'document_uploaded') {
             $document = Document::find($notification->data['document_id']);
-            $document->documentShare->markAsRead();
+            $document->shares->markAsRead();
         }
 
 

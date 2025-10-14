@@ -593,6 +593,12 @@
             // console.log('Content rendered, total items in DOM:', contentArea.children().length);
         }
 
+        // ============================================================
+        // MODAL INFO & EDIT FOLDER
+        // ============================================================
+        // Modal dengan toggle antara view mode dan edit mode
+        // ============================================================
+
         function showFolderInfo(folderId) {
             const url = `{{ route('folders.info', ':id') }}`.replace(':id', folderId);
             $.get(url)
@@ -600,29 +606,135 @@
                     if (response.success) {
                         const folder = response.folder;
                         let infoHtml = `
-                            <div class="modal fade" id="folderInfoModal" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <div class="modal-header bg-info text-white">
-                                            <h5 class="modal-title">Info Folder</h5>
-                                            <button type="button" class="close" data-dismiss="modal">
-                                                <span>&times;</span>
-                                            </button>
+                    <div class="modal fade" id="folderInfoModal" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header bg-info text-white">
+                                    <h5 class="modal-title">
+                                        <span id="modalTitleText">Info Folder</span>
+                                    </h5>
+                                    <button type="button" class="close" data-dismiss="modal">
+                                        <span>&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <!-- VIEW MODE -->
+                                    <div id="viewMode">
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                <div class="info-group mb-3">
+                                                    <label class="font-weight-bold">Nama Folder:</label>
+                                                    <p class="ml-3">${folder.name}</p>
+                                                </div>
+                                                <div class="info-group mb-3">
+                                                    <label class="font-weight-bold">Deskripsi:</label>
+                                                    <p class="ml-3">${folder.description || 'Tidak ada deskripsi'}</p>
+                                                </div>
+                                                <div class="info-group mb-3">
+                                                    <label class="font-weight-bold">Parent Folder:</label>
+                                                    <p class="ml-3">${folder.parent ? folder.parent.name : 'Root Folder'}</p>
+                                                </div>
+                                                <div class="info-group mb-3">
+                                                    <label class="font-weight-bold">Dibuat Pada:</label>
+                                                    <p class="ml-3">${folder.created_at}</p>
+                                                </div>
+                                                <div class="info-group mb-3">
+                                                    <label class="font-weight-bold">Dibuat Oleh:</label>
+                                                    <p class="ml-3">${folder.creator ? folder.creator.name : '-'}</p>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="info-group mb-3">
+                                                            <label class="font-weight-bold">Total Sub Folder:</label>
+                                                            <p class="ml-3"><span class="badge badge-primary">${folder.subfolders_count}</span> Folder</p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="info-group mb-3">
+                                                            <label class="font-weight-bold">Total Dokumen:</label>
+                                                            <p class="ml-3"><span class="badge badge-success">${folder.document_count}</span> Dokumen</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="modal-body">
-                                            <p><strong>Nama Folder:</strong> ${folder.name}</p>
-                                            <p><strong>Deskripsi:</strong> ${folder.description || 'Tidak ada deskripsi'}</p>
-                                            <p><strong>Dibuat Pada:</strong> ${folder.created_at}</p>
-                                            <p><strong>Total Sub Folder:</strong> ${folder.subfolders_count} Folder</p>
-                                            <p><strong>Total Dokumen:</strong> ${folder.document_count} Dokumen</p>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
-                                        </div>
+                                    </div>
+
+                                    <!-- EDIT MODE -->
+                                    <div id="editMode" style="display: none;">
+                                        <form id="editFolderForm">
+                                            <input type="hidden" name="folder_id" value="${folder.id}">
+
+                                            <div class="form-group">
+                                                <label for="folderName">Nama Folder <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="folderName" name="name"
+                                                       value="${folder.name}" required>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="folderDescription">Deskripsi</label>
+                                                <textarea class="form-control" id="folderDescription" name="description"
+                                                          rows="3">${folder.description || ''}</textarea>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="folderParent">Parent Folder</label>
+                                                <select class="form-control" id="folderParent" name="parent_id">
+                                                    <option value="">Root Folder</option>
+                                                    <!-- Options akan diisi via AJAX -->
+                                                </select>
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label for="folderColor">Warna</label>
+                                                        <input type="color" class="form-control" id="folderColor"
+                                                               name="color" value="${folder.color || '#3498db'}">
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-group">
+                                                        <label for="folderIcon">Icon</label>
+                                                        <input type="text" class="form-control" id="folderIcon"
+                                                               name="icon" value="${folder.icon || 'fas fa-folder'}"
+                                                               placeholder="fas fa-folder">
+                                                        <small class="form-text text-muted">Contoh: fas fa-folder, fas fa-file-archive</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <div class="custom-control custom-switch">
+                                                    <input type="checkbox" class="custom-control-input" id="folderActive"
+                                                           name="is_active" ${folder.is_active ? 'checked' : ''}>
+                                                    <label class="custom-control-label" for="folderActive">Aktif</label>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <!-- View Mode Buttons -->
+                                    <div id="viewModeButtons">
+                                        ${folder.can_edit ? '<button type="button" class="btn btn-warning" onclick="toggleEditMode()"><i class="fas fa-edit"></i> Edit</button>' : ''}
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+                                    </div>
+
+                                    <!-- Edit Mode Buttons -->
+                                    <div id="editModeButtons" style="display: none;">
+                                        <button type="button" class="btn btn-secondary" onclick="toggleEditMode()">
+                                            <i class="fas fa-times"></i> Batal
+                                        </button>
+                                        <button type="button" class="btn btn-primary" onclick="updateFolder()">
+                                            <i class="fas fa-save"></i> Simpan
+                                        </button>
                                     </div>
                                 </div>
                             </div>
-                        `;
+                        </div>
+                    </div>
+                `;
 
                         // Remove existing modal if any
                         $('#folderInfoModal').remove();
@@ -630,6 +742,9 @@
                         // Add modal to body and show
                         $('body').append(infoHtml);
                         $('#folderInfoModal').modal('show');
+
+                        // Load parent folder options
+                        loadParentFolderOptions(folder.id, folder.parent_id);
 
                         // Remove modal from DOM after it's hidden
                         $('#folderInfoModal').on('hidden.bs.modal', function() {
@@ -642,6 +757,153 @@
                 .fail(function() {
                     showAlert('error', 'Gagal memuat info folder');
                 });
+        }
+
+        // ============================================================
+        // TOGGLE BETWEEN VIEW MODE AND EDIT MODE
+        // ============================================================
+        function toggleEditMode() {
+            const viewMode = $('#viewMode');
+            const editMode = $('#editMode');
+            const viewButtons = $('#viewModeButtons');
+            const editButtons = $('#editModeButtons');
+            const modalTitle = $('#modalTitleText');
+
+            if (viewMode.is(':visible')) {
+                // Switch to Edit Mode
+                viewMode.hide();
+                editMode.show();
+                viewButtons.hide();
+                editButtons.show();
+                modalTitle.text('Edit Folder');
+                $('.modal-header').removeClass('bg-info').addClass('bg-warning');
+            } else {
+                // Switch to View Mode
+                editMode.hide();
+                viewMode.show();
+                editButtons.hide();
+                viewButtons.show();
+                modalTitle.text('Info Folder');
+                $('.modal-header').removeClass('bg-warning').addClass('bg-info');
+            }
+        }
+
+        // ============================================================
+        // LOAD PARENT FOLDER OPTIONS
+        // ============================================================
+        function loadParentFolderOptions(currentFolderId, selectedParentId) {
+            const url = `{{ route('folders.list') }}`; // Route untuk ambil list folder
+
+            $.get(url)
+                .done(function(response) {
+                    if (response.success) {
+                        let options = '<option value="">Root Folder</option>';
+
+                        response.folders.forEach(function(folder) {
+                            // Exclude current folder and its children
+                            if (folder.id !== currentFolderId) {
+                                const selected = folder.id === selectedParentId ? 'selected' : '';
+                                const indent = '&nbsp;&nbsp;'.repeat(folder.level || 0);
+                                options +=
+                                    `<option value="${folder.id}" ${selected}>${indent}${folder.name}</option>`;
+                            }
+                        });
+
+                        $('#folderParent').html(options);
+                    }
+                })
+                .fail(function() {
+                    console.error('Gagal memuat list folder');
+                });
+        }
+
+        // ============================================================
+        // UPDATE FOLDER
+        // ============================================================
+        function updateFolder() {
+            const form = $('#editFolderForm');
+            const folderId = form.find('input[name="folder_id"]').val();
+            const formData = {
+                name: form.find('#folderName').val(),
+                description: form.find('#folderDescription').val(),
+                parent_id: form.find('#folderParent').val() || null,
+                color: form.find('#folderColor').val(),
+                icon: form.find('#folderIcon').val(),
+                is_active: form.find('#folderActive').is(':checked') ? 1 : 0,
+                _token: '{{ csrf_token() }}'
+            };
+
+            // Validasi
+            if (!formData.name) {
+                showAlert('error', 'Nama folder harus diisi');
+                return;
+            }
+
+            // Show loading
+            const saveBtn = $('#editModeButtons button[onclick="saveFolder()"]');
+            const originalText = saveBtn.html();
+            saveBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Menyimpan...');
+
+            const url = `{{ route('folders.update', ':id') }}`.replace(':id', folderId);
+
+            $.ajax({
+                url: url,
+                method: 'PUT',
+                data: formData,
+                success: function(response) {
+                    if (response.success) {
+                        showAlert('success', response.message || 'Folder berhasil diupdate');
+                        $('#folderInfoModal').modal('hide');
+
+                        // Reload data table atau refresh halaman
+                        if (typeof table !== 'undefined') {
+                            table.ajax.reload();
+                        } else {
+                            location.reload();
+                        }
+                    } else {
+                        showAlert('error', response.message || 'Gagal mengupdate folder');
+                    }
+                },
+                error: function(xhr) {
+                    let errorMessage = 'Gagal mengupdate folder';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    if (xhr.responseJSON && xhr.responseJSON.errors) {
+                        errorMessage += '<br><ul>';
+                        Object.values(xhr.responseJSON.errors).forEach(function(errors) {
+                            errors.forEach(function(error) {
+                                errorMessage += '<li>' + error + '</li>';
+                            });
+                        });
+                        errorMessage += '</ul>';
+                    }
+                    showAlert('error', errorMessage);
+                },
+                complete: function() {
+                    saveBtn.prop('disabled', false).html(originalText);
+                }
+            });
+        }
+
+        // ============================================================
+        // HELPER FUNCTION - SHOW ALERT
+        // ============================================================
+        function showAlert(type, message) {
+            // Jika menggunakan SweetAlert2
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: type,
+                    title: type === 'success' ? 'Berhasil!' : 'Oops...',
+                    html: message,
+                    timer: 3000,
+                    timerProgressBar: true
+                });
+            } else {
+                // Fallback ke alert biasa
+                alert(message);
+            }
         }
 
         function showDocumentInfo(documentId) {

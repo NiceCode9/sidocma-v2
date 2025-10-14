@@ -25,6 +25,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('document-categories', \App\Http\Controllers\DocumentCategoryController::class);
 
     Route::get('/folders', [\App\Http\Controllers\FolderController::class, 'index'])->name('folders.index');
+    Route::put('/folders/{id}', [\App\Http\Controllers\FolderController::class, 'update'])->name('folders.update');
+    Route::get('/folders/list', [\App\Http\Controllers\FolderController::class, 'list'])->name('folders.list');
     // AJAX routes for folder operations
     Route::get('/folders/browse/{folder?}', [\App\Http\Controllers\FolderController::class, 'browse'])->name('folders.browse');
     Route::post('/folders', [\App\Http\Controllers\FolderController::class, 'store'])->name('folders.store');
@@ -74,9 +76,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/{id}/download', [ManagementSuratController::class, 'download'])->name('kirim-surat.download');
     });
 
-    // Route::prefix('surat-masuk')->group(function () {
-    //     Route::get('/', [ManagementSuratController::class, 'suratMasukStaff'])->name('surat-masuk.index');
-    // });
+    Route::prefix('surat-masuk')->group(function () {
+        Route::get('/', [ManagementSuratController::class, 'suratMasukStaff'])->name('surat-masuk.index');
+    });
 
     // Documnent Notifications
     Route::prefix('notifications')->group(function () {
