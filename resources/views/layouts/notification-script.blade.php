@@ -203,7 +203,7 @@
 
         const notificationHtml = notifications.map(notification => `
             <a href="#" class="dropdown-item ${!notification.is_read ? 'notification-item-unread' : ''}"
-               onclick="suratNotificationBell.handleNotificationClick('${notification.id}',, event)">
+               onclick="suratNotificationBell.handleNotificationClick('${notification.id}', '${notification.action_url}', event)">
                 <div class="dropdown-item-icon bg-primary text-white">
                     <i class="fas fa-envelope"></i>
                 </div>
