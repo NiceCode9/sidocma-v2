@@ -78,7 +78,7 @@ class DocumentController extends Controller
                 $uplaodedDocuments[] = $document;
 
                 // Kirim notifikasi ke users yang memiliki akses ke folder
-                $this->notifyFolderUsers($document, $folder, $user, 'document_uploaded');
+                // $this->notifyFolderUsers($document, $folder, $user, 'document_uploaded');
             } catch (\Throwable $th) {
                 $errors[] = [
                     'filename' => $file->getClientOriginalName(),
@@ -181,6 +181,49 @@ class DocumentController extends Controller
         ));
     }
 
+    protected function notifyDocumentPermissionUsers(Document $document, User $actor)
+    {
+        // Ambil user_ids langsung dari DocumentPermission
+        $directUserIds = DocumentPermission::where('document_id', $document->id)
+            ->whereNotNull('user_id')
+            ->pluck('user_id');
+
+        // Ambil user_ids dari unit permissions
+        $unitUserIds = User::whereIn('unit_id', function ($query) use ($document) {
+            $query->select('unit_id')
+                ->from('document_permissions')
+                ->where('document_id', $document->id)
+                ->whereNotNull('unit_id');
+        })->pluck('id');
+
+        // Ambil user_ids dari role permissions
+        $roleUserIds = User::whereHas('roles', function ($query) use ($document) {
+            $query->whereIn('id', function ($subQuery) use ($document) {
+                $subQuery->select('role_id')
+                    ->from('document_permissions')
+                    ->where('document_id', $document->id)
+                    ->whereNotNull('role_id');
+            });
+        })->pluck('id');
+
+        // Gabungkan dan filter (exclude actor)
+        $userIds = $directUserIds
+            ->merge($unitUserIds)
+            ->merge($roleUserIds)
+            ->unique()
+            ->reject(function ($userId) use ($actor) {
+                return $userId == $actor->id;
+            });
+
+        $users = User::whereIn('id', $userIds)->get();
+
+        // Send notifications
+        Notification::send($users, new DocumentNotification(
+            $document,
+            'document_uploaded',
+            $actor
+        ));
+    }
 
     public function download(Document $document)
     {
@@ -331,6 +374,8 @@ class DocumentController extends Controller
                     'message' => $result['message']
                 ], 422);
             }
+
+            $this->notifyDocumentPermissionUsers($document, $user);
 
             return response()->json([
                 'success' => true,
