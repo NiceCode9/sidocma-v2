@@ -180,9 +180,9 @@
                             <textarea class="form-control" id="folderDescription" rows="3"></textarea>
                         </div>
 
-                        <h6 class="mb-3">Permissions Folder</h6>
+                        {{-- <h6 class="mb-3">Permissions Folder</h6> --}}
 
-                        <div id="permissionContainer"></div>
+                        {{-- <div id="permissionContainer"></div> --}}
 
                     </form>
                 </div>

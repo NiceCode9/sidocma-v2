@@ -747,7 +747,7 @@ class ManagementSuratController extends Controller
                 ->addColumn('action', function ($row) {
                     $btn = '<div class="btn-group" role="group">';
                     $btn .= '<a href="' . route('documents.view-file', $row->id) . '"
-                     class="btn btn-info btn-sm" title="View">
+                     class="btn btn-info btn-sm" title="View" target="_blank">
                      <i class="fas fa-eye"></i>
                      </a>';
                     $btn .= '<a href="' . route('documents.download', $row->id) . '"
