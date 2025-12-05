@@ -88,9 +88,12 @@ class ManagementSuratController extends Controller
     public function suratKeluarData(Request $request)
     {
         if ($request->ajax()) {
-            $data = Document::with(['creator', 'category'])
+            $data = Document::with(['creator', 'category', 'folder' => function ($query) {
+                $query->select('id', 'name');
+            }])
                 ->where('is_letter', true)
-                ->select('*');
+                ->select('*')
+                ->orderBy('created_at', 'desc');
 
             return DataTables::of($data)
                 ->addIndexColumn()

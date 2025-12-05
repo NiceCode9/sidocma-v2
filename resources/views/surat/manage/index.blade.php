@@ -203,6 +203,7 @@
                                                 <tr>
                                                     <th width="5%">No</th>
                                                     <th>Judul</th>
+                                                    <th>Unit Tertuju</th>
                                                     <th>Kategori</th>
                                                     <th>Tanggal Dibuat</th>
                                                     <th>Status Dibaca</th>
@@ -299,6 +300,10 @@
                     {
                         data: 'title',
                         name: 'title'
+                    },
+                    {
+                        data: 'folder.name',
+                        name: 'folder.name'
                     },
                     // {
                     //     data: 'creator_name',
