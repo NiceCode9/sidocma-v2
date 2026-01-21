@@ -74,7 +74,7 @@ class SuratNotification extends Notification implements ShouldQueue
             'sender_name' => $this->surat->user->name ?? 'Unknown',
             'has_file' => !empty($this->surat->file),
             'message' => "Surat baru dari {$this->surat->user->name} - {$this->surat->perihal}",
-            'url' => route('surat.view', $this->surat->id),
+            'action_url' => route('surat.view', $this->surat->id),
             'time_ago' => $this->surat->created_at->diffForHumans(),
         ]);
     }
