@@ -100,6 +100,24 @@ Route::middleware('auth')->group(function () {
     Route::get('/surat/{id}/stream', [ManagementSuratController::class, 'streamFile'])->name('surat.stream');
 
     Route::get('/surat/{id}/docx-html', [ManagementSuratController::class, 'viewDocxHtml'])->name('surat.docx-html');
+
+    // Disposisi Routes
+    Route::prefix('disposisi')->name('disposisi.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\DisposisiController::class, 'index'])->name('index');
+        Route::get('/data', [\App\Http\Controllers\DisposisiController::class, 'data'])->name('data');
+        Route::get('/create', [\App\Http\Controllers\DisposisiController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\DisposisiController::class, 'store'])->name('store');
+        Route::get('/{id}', [\App\Http\Controllers\DisposisiController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [\App\Http\Controllers\DisposisiController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [\App\Http\Controllers\DisposisiController::class, 'update'])->name('update');
+        Route::delete('/{id}', [\App\Http\Controllers\DisposisiController::class, 'destroy'])->name('destroy');
+        Route::patch('/{id}/selesaikan', [\App\Http\Controllers\DisposisiController::class, 'selesaikan'])->name('selesaikan');
+        Route::get('/{id}/cetak', [\App\Http\Controllers\DisposisiController::class, 'cetak'])->name('cetak');
+    });
+
+    // Disposisi Masuk (untuk unit tujuan)
+    Route::get('/disposisi-masuk', [\App\Http\Controllers\DisposisiController::class, 'masuk'])->name('disposisi.masuk');
+    Route::patch('/disposisi-target/{id}/paraf', [\App\Http\Controllers\DisposisiController::class, 'tandaiParaf'])->name('disposisi.paraf');
 });
 
 require __DIR__ . '/auth.php';

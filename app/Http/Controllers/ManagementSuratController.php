@@ -28,60 +28,189 @@ class ManagementSuratController extends Controller
     public function suratMasukData(Request $request)
     {
         if ($request->ajax()) {
-            $data = Surat::with('user.unit')->select('*');
+            $user = Auth::user();
 
-            return DataTables::of($data)
+            // Super admin: hanya lihat Surat (perilaku asli)
+            if ($user->hasRole('super admin') && !$user->hasRole('direktur')) {
+                $data = Surat::with('user.unit')->select('*');
+
+                return DataTables::of($data)
+                    ->addIndexColumn()
+                    ->addColumn('tipe', fn($row) => '<span class="badge badge-primary">Surat</span>')
+                    ->addColumn('user_name', fn($row) => $row->user ? $row->user->name : '-')
+                    ->addColumn('pengirim', fn($row) => $row->user ? $row->user->name : '-')
+                    ->addColumn('unit', fn($row) => $row->user && $row->user->unit ? $row->user->unit->name : '-')
+                    ->addColumn('status_badge', function ($row) {
+                        return $row->read_at
+                            ? '<span class="badge badge-success">Dibaca</span>'
+                            : '<span class="badge badge-warning">Belum Dibaca</span>';
+                    })
+                    ->addColumn('file', function ($row) {
+                        if (!$row->file) return '';
+                        return '<a href="' . route('kirim-surat.download', $row->id) . '" class="btn btn-success btn-sm" title="Download">
+                            <i class="fas fa-download"></i>
+                        </a>';
+                    })
+                    ->addColumn('action', function ($row) {
+                        $actionBtn = '<div class="btn-group" role="group">
+                                <a href="' . route('surat.view', $row->id) . '" class="btn btn-info btn-sm" title="Lihat Surat">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>';
+                        return $actionBtn;
+                    })
+                    ->addColumn('disposisi_badge', fn($row) => '<span class="badge badge-secondary">-</span>')
+                ->rawColumns(['tipe', 'status_badge', 'disposisi_badge', 'file', 'action'])
+                    ->make(true);
+            }
+
+            // Ambil semua disposisi untuk lookup
+            $disposisiSuratIds = \App\Models\Disposisi::whereNotNull('surat_id')->pluck('surat_id', 'id');
+            $disposisiDocIds = \App\Models\Disposisi::whereNotNull('document_id')->pluck('document_id', 'id');
+            $disposisiStatuses = \App\Models\Disposisi::select('id', 'surat_id', 'document_id', 'status')->get()->keyBy(function ($item) {
+                return $item->surat_id ? 'surat_' . $item->surat_id : 'doc_' . $item->document_id;
+            });
+
+            // Direktur: gabungan Surat + Document (is_letter)
+            $suratList = Surat::with('user.unit')->get()->map(function ($item) use ($disposisiStatuses) {
+                $key = 'surat_' . $item->id;
+                $disposisi = $disposisiStatuses->get($key);
+                return [
+                    'id' => $key,
+                    'source_type' => 'surat',
+                    'source_id' => $item->id,
+                    'no_surat' => $item->no_surat,
+                    'perihal' => $item->perihal,
+                    'pengirim' => $item->user ? $item->user->name : '-',
+                    'unit' => $item->user && $item->user->unit ? $item->user->unit->name : '-',
+                    'status_badge' => $item->read_at
+                        ? '<span class="badge badge-success">Dibaca</span>'
+                        : '<span class="badge badge-warning">Belum Dibaca</span>',
+                    'disposisi_badge' => $disposisi
+                        ? '<a href="' . route('disposisi.show', $disposisi->id) . '" class="badge ' . $disposisi->status->badgeClass() . '">' . $disposisi->status->label() . '</a>'
+                        : '<span class="badge badge-secondary">Belum Disposisi</span>',
+                    'read_at' => $item->read_at,
+                    'has_file' => !empty($item->file),
+                    'file_path' => $item->file,
+                    'created_at' => $item->created_at->format('Y-m-d H:i:s'),
+                    'created_at_raw' => $item->created_at,
+                ];
+            });
+
+            $docList = Document::with('creator.unit')
+                ->where('is_letter', true)
+                ->where('is_active', true)
+                ->get()
+                ->map(function ($item) use ($disposisiStatuses) {
+                    $key = 'doc_' . $item->id;
+                    $disposisi = $disposisiStatuses->get($key);
+                    $isRead = $item->shares && $item->shares->is_read;
+                    return [
+                        'id' => $key,
+                        'source_type' => 'document',
+                        'source_id' => $item->id,
+                        'no_surat' => $item->document_number ?? '-',
+                        'perihal' => $item->title,
+                        'pengirim' => $item->creator ? $item->creator->name : '-',
+                        'unit' => $item->creator && $item->creator->unit ? $item->creator->unit->name : '-',
+                        'status_badge' => $isRead
+                            ? '<span class="badge badge-success">Dibaca</span>'
+                            : '<span class="badge badge-warning">Belum Dibaca</span>',
+                        'disposisi_badge' => $disposisi
+                            ? '<a href="' . route('disposisi.show', $disposisi->id) . '" class="badge ' . $disposisi->status->badgeClass() . '">' . $disposisi->status->label() . '</a>'
+                            : '<span class="badge badge-secondary">Belum Disposisi</span>',
+                        'read_at' => $item->shares ? $item->shares->read_at : null,
+                        'has_file' => !empty($item->file_path),
+                        'file_path' => $item->file_path,
+                        'created_at' => $item->created_at->format('Y-m-d H:i:s'),
+                        'created_at_raw' => $item->created_at,
+                    ];
+                });
+
+            $combined = $suratList->merge($docList)->sortByDesc('created_at_raw')->values();
+
+            return DataTables::of($combined)
                 ->addIndexColumn()
-                ->addColumn('user_name', function ($row) {
-                    return $row->user ? $row->user->name : '-';
-                })
-                ->addColumn('status', function ($row) {
-                    if ($row->read_at) {
-                        return '<span class="badge badge-success">Dibaca</span>';
-                    } else {
-                        return '<span class="badge badge-warning">Belum Dibaca</span>';
-                    }
+                ->addColumn('tipe', function ($row) {
+                    return $row['source_type'] === 'surat'
+                        ? '<span class="badge badge-primary">Surat</span>'
+                        : '<span class="badge badge-info">Dokumen</span>';
                 })
                 ->addColumn('file', function ($row) {
-                    $downloadBtn = '';
-                    if ($row->file) {
-                        $downloadBtn = '<a href="' . route('kirim-surat.download', $row->id) . '" class="btn btn-success btn-sm" title="Download">
-                                            <i class="fas fa-download"></i>
-                                        </a>';
+                    if (!$row['has_file']) return '';
+                    if ($row['source_type'] === 'surat') {
+                        return '<a href="' . route('kirim-surat.download', $row['source_id']) . '" class="btn btn-success btn-sm" title="Download">
+                            <i class="fas fa-download"></i>
+                        </a>';
                     }
-                    return $downloadBtn;
+                    return '<a href="' . route('documents.download', $row['source_id']) . '" class="btn btn-success btn-sm" title="Download">
+                        <i class="fas fa-download"></i>
+                    </a>';
                 })
                 ->addColumn('action', function ($row) {
-                    $actionBtn = '<div class="btn-group" role="group">
-                            <a href="' . route('surat.view', $row->id) . '" class="btn btn-info btn-sm" title="Lihat Surat">
-                                <i class="fas fa-eye"></i> Lihat
-                            </a>
-                        <button type="button" class="btn btn-warning btn-sm" onclick="editSurat(' . $row->id . ')">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteSurat(' . $row->id . ')">
-                            <i class="fas fa-trash"></i> Hapus
-                        </button>
-                    </div>';
+                    $actionBtn = '<div class="btn-group" role="group">';
+                    if ($row['source_type'] === 'surat') {
+                        $actionBtn .= '<a href="' . route('surat.view', $row['source_id']) . '" class="btn btn-info btn-sm" title="Lihat Surat">
+                            <i class="fas fa-eye"></i>
+                        </a>';
+                        $actionBtn .= '<a href="' . route('disposisi.create', ['type' => 'surat', 'id' => $row['source_id']]) . '" class="btn btn-primary btn-sm" title="Buat Disposisi">
+                            <i class="fas fa-tasks"></i>
+                        </a>';
+                    } else {
+                        $actionBtn .= '<a href="' . route('documents.view-file', $row['source_id']) . '" class="btn btn-info btn-sm" title="Lihat Dokumen" target="_blank">
+                            <i class="fas fa-eye"></i>
+                        </a>';
+                        $actionBtn .= '<a href="' . route('disposisi.create', ['type' => 'document', 'id' => $row['source_id']]) . '" class="btn btn-primary btn-sm" title="Buat Disposisi">
+                            <i class="fas fa-tasks"></i>
+                        </a>';
+                    }
+                    $actionBtn .= '</div>';
                     return $actionBtn;
                 })
-                ->rawColumns(['status', 'file', 'action'])
+                ->rawColumns(['tipe', 'status_badge', 'disposisi_badge', 'file', 'action'])
                 ->make(true);
         }
     }
 
     public function suratMasukStats()
     {
-        $totalSuratMasuk = Surat::count();
-        $suratMasukDibaca = Surat::where('read_at', '!=', null)->count();
-        $suratMasukBelumDibaca = Surat::where('read_at', null)->count();
-        $suratMasukHariIni = Surat::whereDate('created_at', today())->count();
+        $user = Auth::user();
+
+        // Super admin: hanya Surat
+        if ($user->hasRole('super admin') && !$user->hasRole('direktur')) {
+            return response()->json([
+                'totalSuratMasuk' => Surat::count(),
+                'suratMasukDibaca' => Surat::whereNotNull('read_at')->count(),
+                'suratMasukBelumDibaca' => Surat::whereNull('read_at')->count(),
+                'suratMasukHariIni' => Surat::whereDate('created_at', today())->count(),
+            ]);
+        }
+
+        // Direktur: gabungan
+        $suratTotal = Surat::count();
+        $suratDibaca = Surat::whereNotNull('read_at')->count();
+        $suratBelum = Surat::whereNull('read_at')->count();
+        $suratHariIni = Surat::whereDate('created_at', today())->count();
+
+        $docTotal = Document::where('is_letter', true)->where('is_active', true)->count();
+        $docDibaca = Document::where('is_letter', true)->where('is_active', true)
+            ->whereHas('shares', fn($q) => $q->where('is_read', true))
+            ->count();
+        $docBelum = Document::where('is_letter', true)->where('is_active', true)
+            ->where(function ($q) {
+                $q->whereHas('shares', fn($sq) => $sq->where('is_read', false))
+                  ->orWhereDoesntHave('shares');
+            })
+            ->count();
+        $docHariIni = Document::where('is_letter', true)->where('is_active', true)
+            ->whereDate('created_at', today())
+            ->count();
 
         return response()->json([
-            'totalSuratMasuk' => $totalSuratMasuk,
-            'suratMasukDibaca' => $suratMasukDibaca,
-            'suratMasukBelumDibaca' => $suratMasukBelumDibaca,
-            'suratMasukHariIni' => $suratMasukHariIni,
+            'totalSuratMasuk' => $suratTotal + $docTotal,
+            'suratMasukDibaca' => $suratDibaca + $docDibaca,
+            'suratMasukBelumDibaca' => $suratBelum + $docBelum,
+            'suratMasukHariIni' => $suratHariIni + $docHariIni,
         ]);
     }
 
@@ -310,15 +439,17 @@ class ManagementSuratController extends Controller
 
         // Buat surat baru
         $surat = Surat::create($data);
-        // $surat = Surat::first();
-        // Ambil semua user dengan role super admin
+
+        // Ambil semua user dengan role super admin dan direktur
         $superAdmins = User::role('super admin')->get();
+        $direktur = User::role('direktur')->get();
+        $allRecipients = $superAdmins->merge($direktur)->unique('id');
 
         // Broadcast event dengan data surat dan users
-        broadcast(new SuratCreate($surat, $superAdmins));
+        broadcast(new SuratCreate($surat, $allRecipients));
 
-        if ($superAdmins->isNotEmpty()) {
-            Notification::send($superAdmins, new SuratNotification($surat, 'surat_masuk', Auth::user()));
+        if ($allRecipients->isNotEmpty()) {
+            Notification::send($allRecipients, new SuratNotification($surat, 'surat_masuk', Auth::user()));
         }
 
         return response()->json([
@@ -396,13 +527,23 @@ class ManagementSuratController extends Controller
     {
         try {
             $surat = Surat::find($id);
+            $user = Auth::user();
+
+            // Authorization: super admin, direktur, atau unit target disposisi
+            $isTargetUnit = \App\Models\Disposisi::where('surat_id', $surat->id)
+                ->whereHas('targets', fn($q) => $q->where('unit_id', $user->unit_id))
+                ->exists();
+
+            if (!$user->hasRole(['super admin', 'direktur']) && !$isTargetUnit) {
+                abort(403, 'Anda tidak memiliki akses untuk mengunduh surat ini.');
+            }
 
             if (!$surat->file) {
                 abort(404, 'File tidak ditemukan');
             }
 
             // Mark as read jika user adalah super admin
-            if (Auth::user()->hasRole('super admin')) {
+            if ($user->hasRole('super admin')) {
                 $surat->markAsRead();
             }
 
@@ -515,6 +656,16 @@ class ManagementSuratController extends Controller
     {
         $surat = Surat::find($id);
         $user = Auth::user();
+
+        // Authorization: super admin, direktur, atau unit target disposisi
+        $isTargetUnit = \App\Models\Disposisi::where('surat_id', $surat->id)
+            ->whereHas('targets', fn($q) => $q->where('unit_id', $user->unit_id))
+            ->exists();
+
+        if (!$user->hasRole(['super admin', 'direktur']) && !$isTargetUnit) {
+            abort(403, 'Anda tidak memiliki akses untuk melihat surat ini.');
+        }
+
         $filePath = Storage::disk('public')->path($surat->file);
 
         if (!file_exists($filePath)) {
@@ -540,6 +691,17 @@ class ManagementSuratController extends Controller
     public function streamFile(string $id)
     {
         $surat = Surat::find($id);
+        $user = Auth::user();
+
+        // Authorization: super admin, direktur, atau unit target disposisi
+        $isTargetUnit = \App\Models\Disposisi::where('surat_id', $surat->id)
+            ->whereHas('targets', fn($q) => $q->where('unit_id', $user->unit_id))
+            ->exists();
+
+        if (!$user->hasRole(['super admin', 'direktur']) && !$isTargetUnit) {
+            abort(403);
+        }
+
         $filePath = Storage::disk('public')->path($surat->file);
 
         if (!file_exists($filePath)) {

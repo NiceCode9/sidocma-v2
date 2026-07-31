@@ -2,70 +2,58 @@
 
 namespace App\Policies;
 
+use App\Models\Disposisi;
 use App\Models\Surat;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
 
 class SuratPolicy
 {
-    /**
-     * Determine whether the user can view any models.
-     */
     public function viewAny(User $user): bool
     {
-        return false;
+        return $user->hasRole(['super admin', 'direktur']);
     }
 
-    /**
-     * Determine whether the user can view the model.
-     */
     public function view(User $user, Surat $surat): bool
     {
-        return false;
+        if ($user->hasRole(['super admin', 'direktur'])) return true;
+
+        return Disposisi::where('surat_id', $surat->id)
+            ->whereHas('targets', fn($q) => $q->where('unit_id', $user->unit_id))
+            ->exists();
     }
 
-    /**
-     * Determine whether the user can create models.
-     */
     public function create(User $user): bool
     {
-        return false;
+        return true;
     }
 
-    /**
-     * Determine whether the user can update the model.
-     */
     public function update(User $user, Surat $surat): bool
     {
-        return false;
+        return $user->hasRole(['super admin', 'direktur']);
     }
 
-    /**
-     * Determine whether the user can delete the model.
-     */
     public function delete(User $user, Surat $surat): bool
     {
-        return false;
+        return $user->hasRole(['super admin', 'direktur']);
     }
 
-    /**
-     * Determine whether the user can restore the model.
-     */
     public function restore(User $user, Surat $surat): bool
     {
-        return false;
+        return $user->hasRole(['super admin', 'direktur']);
     }
 
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
     public function forceDelete(User $user, Surat $surat): bool
     {
-        return false;
+        return $user->hasRole(['super admin', 'direktur']);
     }
 
     public function canDownload(User $user, Surat $surat)
     {
-        return $user->unit_id === $surat->user->unit_id || $user->hasRole('super admin');
+        return $user->hasRole(['super admin', 'direktur'])
+            || $user->unit_id === $surat->user->unit_id
+            || Disposisi::where('surat_id', $surat->id)
+                ->whereHas('targets', fn($q) => $q->where('unit_id', $user->unit_id))
+                ->exists();
     }
 }

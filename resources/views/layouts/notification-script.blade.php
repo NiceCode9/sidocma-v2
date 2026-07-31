@@ -65,6 +65,17 @@
                     // handleSuratReadNotification(e);
                     window.tableSuratUnit.ajax.reload(null, false);
                 });
+
+            // Listen to disposisi notifications
+            window.Echo.private(`disposisi.${userId}`)
+                .listen('.disposisi-baru', (e) => {
+                    console.log('New disposisi notification:', e);
+                    this.loadUnreadCount();
+                    this.animateBell();
+                    if (typeof toastr !== 'undefined') {
+                        toastr.info('Disposisi baru diterima!', 'Notifikasi');
+                    }
+                });
         @endauth
     }
 

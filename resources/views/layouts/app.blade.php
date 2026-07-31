@@ -359,6 +359,10 @@
                                     class="nav-link" href="{{ route('management-surat.index') }}"><i
                                         class="fas fa-paper-plane"></i>
                                     <span>Management Surat</span></a></li>
+                            <li class="{{ request()->routeIs('disposisi.index*') ? 'active' : '' }}"><a
+                                    class="nav-link" href="{{ route('disposisi.index') }}"><i
+                                        class="fas fa-tasks"></i>
+                                    <span>Disposisi</span></a></li>
                         @else
                             <li class="{{ request()->routeIs('kirim-surat*') ? 'active' : '' }}"><a class="nav-link"
                                     href="{{ route('kirim-surat.index') }}"><i class="fas fa-envelope"></i>
@@ -367,6 +371,9 @@
                                     href="{{ route('surat-masuk.index') }}"><i class="fas fa-inbox"></i>
                                     <span>Surat Masuk</span></a></li>
                         @endif
+                        <li class="{{ request()->routeIs('disposisi.masuk*') ? 'active' : '' }}"><a class="nav-link"
+                                href="{{ route('disposisi.masuk') }}"><i class="fas fa-inbox"></i>
+                                <span>Disposisi Masuk</span></a></li>
                     </ul>
                 </aside>
             </div>
@@ -405,6 +412,7 @@
     <script src="{{ asset('/stisla') }}/node_modules/bootstrap-daterangepicker/daterangepicker.js"></script>
     <script src="{{ asset('/stisla') }}/node_modules/select2/dist/js/select2.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
     <!-- Template JS File -->
     <script src="{{ asset('/stisla/assets/js/scripts.js') }}"></script>

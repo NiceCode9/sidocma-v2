@@ -16,6 +16,11 @@
                             <a href="{{ route('kirim-surat.download', $surat->id) }}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-download mr-1"></i> Download
                             </a>
+                            @if (auth()->user()->hasRole(['super admin', 'direktur']))
+                                <a href="{{ route('disposisi.create', ['type' => 'surat', 'id' => $surat->id]) }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-tasks mr-1"></i> Disposisi
+                                </a>
+                            @endif
                             <a href="{{ auth()->user()->hasRole('super admin') ? route('management-surat.index') : route('kirim-surat.index') }}"
                                 class="btn btn-sm btn-secondary">
                                 <i class="fas fa-arrow-left mr-1"></i> Kembali

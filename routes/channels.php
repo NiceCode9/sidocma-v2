@@ -22,8 +22,11 @@ Broadcast::channel('surat-readed', function ($user) {
     return $user->hasRole('super admin');
 });
 
-// Optional: Channel publik untuk semua user yang memiliki akses
-// Broadcast::channel('suratmasuk', function ($user) {
-//     // Hanya user dengan role tertentu yang bisa akses channel publik
-//     return $user->hasRole(['super admin', 'admin']);
-// });
+// Channel untuk disposisi per user
+Broadcast::channel('disposisi.{userId}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
+});
+
+Broadcast::channel('disposisi', function ($user) {
+    return $user->hasAnyRole(['super admin', 'direktur']);
+});

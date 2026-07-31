@@ -229,7 +229,11 @@ class DocumentController extends Controller
     {
         $user = Auth::user();
 
-        if (!$this->permissionService->canAccessDocument($user, $document, 'download')) {
+        $isTargetUnit = \App\Models\Disposisi::where('document_id', $document->id)
+            ->whereHas('targets', fn($q) => $q->where('unit_id', $user->unit_id))
+            ->exists();
+
+        if (!$isTargetUnit && !$this->permissionService->canAccessDocument($user, $document, 'download')) {
             return response()->json([
                 'error' => 'Anda tidak memiliki izin untuk mengunduh dokumen ini'
             ], 403);
@@ -418,12 +422,17 @@ class DocumentController extends Controller
 
     public function viewFile(Document $document)
     {
-        if (!$this->permissionService->canAccessDocument(Auth::user(), $document)) {
+        $user = Auth::user();
+
+        // Cek akses disposisi: jika user adalah unit target disposisi dari dokumen ini, izinkan
+        $isTargetUnit = \App\Models\Disposisi::where('document_id', $document->id)
+            ->whereHas('targets', fn($q) => $q->where('unit_id', $user->unit_id))
+            ->exists();
+
+        if (!$isTargetUnit && !$this->permissionService->canAccessDocument($user, $document)) {
             return abort(403, 'Anda tidak memiliki izin untuk melihat file ini.');
         }
 
-        // $document = Document::find($id);
-        $user = Auth::user();
         $filePath = Storage::disk('public')->path($document->file_path);
 
         if (!file_exists($filePath)) {
@@ -443,7 +452,16 @@ class DocumentController extends Controller
 
     public function streamFile(Document $document)
     {
-        // $surat = Document::find($id);
+        $user = Auth::user();
+
+        $isTargetUnit = \App\Models\Disposisi::where('document_id', $document->id)
+            ->whereHas('targets', fn($q) => $q->where('unit_id', $user->unit_id))
+            ->exists();
+
+        if (!$isTargetUnit && !$this->permissionService->canAccessDocument($user, $document)) {
+            abort(403);
+        }
+
         $filePath = Storage::disk('public')->path($document->file_path);
 
         if (!file_exists($filePath)) {

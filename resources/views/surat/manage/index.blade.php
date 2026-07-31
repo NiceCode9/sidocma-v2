@@ -116,11 +116,13 @@
                                             <thead>
                                                 <tr>
                                                     <th width="5%">No</th>
+                                                    <th width="7%">Tipe</th>
                                                     <th>No. Surat</th>
                                                     <th>Perihal</th>
                                                     <th>Pengirim</th>
                                                     <th>Unit</th>
                                                     <th>Status</th>
+                                                    <th>Disposisi</th>
                                                     <th>File</th>
                                                     <th>Tanggal</th>
                                                     <th width="15%">Aksi</th>
@@ -241,6 +243,12 @@
                         searchable: false
                     },
                     {
+                        data: 'tipe',
+                        name: 'tipe',
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
                         data: 'no_surat',
                         name: 'no_surat'
                     },
@@ -249,17 +257,24 @@
                         name: 'perihal'
                     },
                     {
-                        data: 'user_name',
-                        name: 'user.name'
+                        data: 'pengirim',
+                        name: 'pengirim'
                     },
                     {
-                        data: 'user.unit.name',
-                        name: 'user.unit.name'
+                        data: 'unit',
+                        name: 'unit'
                     },
                     {
-                        data: 'status',
+                        data: 'status_badge',
                         name: 'read_at',
                         orderable: false
+                    },
+                    {
+                        data: 'disposisi_badge',
+                        name: 'disposisi_badge',
+                        orderable: false,
+                        searchable: false,
+                        defaultContent: '-'
                     },
                     {
                         data: 'file',
@@ -279,7 +294,7 @@
                     }
                 ],
                 order: [
-                    [6, 'desc']
+                    [9, 'desc']
                 ],
             });
 

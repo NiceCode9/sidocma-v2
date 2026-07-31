@@ -1,0 +1,76 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\DisposisiStatus;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class Disposisi extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'surat_id',
+        'document_id',
+        'no_agenda',
+        'tanggal_naskah',
+        'masuk_tu',
+        'tgl_no_naskah',
+        'asal_naskah',
+        'isi_informasi',
+        'sifat',
+        'catatan_lain',
+        'batas_waktu',
+        'status',
+        'created_by',
+        'approved_by',
+    ];
+
+    protected $casts = [
+        'tanggal_naskah' => 'date',
+        'masuk_tu' => 'datetime',
+        'batas_waktu' => 'date',
+        'status' => DisposisiStatus::class,
+    ];
+
+    public function surat()
+    {
+        return $this->belongsTo(Surat::class);
+    }
+
+    public function document()
+    {
+        return $this->belongsTo(Document::class);
+    }
+
+    public function targets()
+    {
+        return $this->hasMany(DisposisiTarget::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function scopeByStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    public function isEditable(): bool
+    {
+        return $this->status === DisposisiStatus::Draft;
+    }
+
+    public function getTargetUnitIds(): array
+    {
+        return $this->targets->pluck('unit_id')->toArray();
+    }
+}
