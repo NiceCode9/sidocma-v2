@@ -43,6 +43,12 @@ class DocumentController extends Controller
             'files' => 'required|array',
             'files.*' => 'required|file|mimes:pdf,docx,doc,xlsx,xls,ppt,pptx,zip|max:20480',
             'is_letter' => 'boolean',
+            'needs_disposisi' => 'nullable|boolean',
+            'disposisi_tgl_naskah' => 'nullable|date',
+            'disposisi_masuk_tu' => 'nullable',
+            'disposisi_tgl_no_naskah' => 'nullable|string|max:255',
+            'disposisi_asal_naskah' => 'nullable|string|max:255',
+            'disposisi_informasi_naskah' => 'nullable|string',
         ]);
 
         $folder = Folder::find($request->folder_id);
@@ -60,6 +66,12 @@ class DocumentController extends Controller
         $documentNumber = $request->input('document_number');
         $isLatter = $request->boolean('is_letter');
         $category = $request->input('category');
+        $needsDisposisi = $request->boolean('needs_disposisi');
+        $disposisiTglNaskah = $request->input('disposisi_tgl_naskah');
+        $disposisiMasukTu = $request->input('disposisi_masuk_tu');
+        $disposisiTglNoNaskah = $request->input('disposisi_tgl_no_naskah');
+        $disposisiAsalNaskah = $request->input('disposisi_asal_naskah');
+        $disposisiInformasiNaskah = $request->input('disposisi_informasi_naskah');
         $uplaodedDocuments = [];
         $errors = [];
 
@@ -73,6 +85,12 @@ class DocumentController extends Controller
                     $isLatter,
                     $documentNumber,
                     $category,
+                    $needsDisposisi,
+                    $disposisiTglNaskah,
+                    $disposisiMasukTu,
+                    $disposisiTglNoNaskah,
+                    $disposisiAsalNaskah,
+                    $disposisiInformasiNaskah,
                 );
 
                 $uplaodedDocuments[] = $document;

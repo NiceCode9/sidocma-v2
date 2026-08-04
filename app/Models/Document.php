@@ -30,6 +30,12 @@ class Document extends Model
         'is_letter',
         'is_confidential',
         'expiry_date',
+        'needs_disposisi',
+        'disposisi_tgl_naskah',
+        'disposisi_masuk_tu',
+        'disposisi_tgl_no_naskah',
+        'disposisi_asal_naskah',
+        'disposisi_informasi_naskah',
         'created_by',
         'updated_by',
         'approved_by',
@@ -45,6 +51,9 @@ class Document extends Model
         'approved_at' => 'datetime',
         'file_size' => 'integer',
         'is_active' => 'boolean',
+        'needs_disposisi' => 'boolean',
+        'disposisi_tgl_naskah' => 'date',
+        'disposisi_masuk_tu' => 'datetime',
     ];
 
     public function getActivitylogOptions(): LogOptions

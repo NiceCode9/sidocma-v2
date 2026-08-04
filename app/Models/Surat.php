@@ -20,11 +20,20 @@ class Surat extends Model
         'is_read',
         'opened_by',
         'read_at',
+        'needs_disposisi',
+        'disposisi_tgl_naskah',
+        'disposisi_masuk_tu',
+        'disposisi_tgl_no_naskah',
+        'disposisi_asal_naskah',
+        'disposisi_informasi_naskah',
     ];
 
     protected $casts = [
         'is_read' => 'boolean',
         'read_at' => 'datetime',
+        'needs_disposisi' => 'boolean',
+        'disposisi_tgl_naskah' => 'date',
+        'disposisi_masuk_tu' => 'datetime',
     ];
 
 

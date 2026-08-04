@@ -20,6 +20,12 @@ class DocumentService
         bool $is_letter = false,
         ?string $document_number = null,
         ?int $category = null,
+        bool $needs_disposisi = false,
+        ?string $disposisi_tgl_naskah = null,
+        ?string $disposisi_masuk_tu = null,
+        ?string $disposisi_tgl_no_naskah = null,
+        ?string $disposisi_asal_naskah = null,
+        ?string $disposisi_informasi_naskah = null,
     ): Document {
         $fileName = $this->generateUniqueName($file);
         $filePath = $file->storeAs('documents', $fileName, 'public');
@@ -39,6 +45,12 @@ class DocumentService
             'version' => 1,
             'is_active' => true,
             'is_letter' => $is_letter,
+            'needs_disposisi' => $needs_disposisi,
+            'disposisi_tgl_naskah' => $disposisi_tgl_naskah,
+            'disposisi_masuk_tu' => $disposisi_masuk_tu,
+            'disposisi_tgl_no_naskah' => $disposisi_tgl_no_naskah,
+            'disposisi_asal_naskah' => $disposisi_asal_naskah,
+            'disposisi_informasi_naskah' => $disposisi_informasi_naskah,
         ]);
 
         $this->createDocumentShare($document, $uploader);

@@ -103,11 +103,26 @@ class DisposisiController extends Controller
 
         $surat = null;
         $document = null;
+        $prefill = [];
 
         if ($type === 'surat') {
             $surat = Surat::with('user')->findOrFail($id);
+            $prefill = [
+                'tanggal_naskah' => $surat->disposisi_tgl_naskah,
+                'masuk_tu' => $surat->disposisi_masuk_tu,
+                'tgl_no_naskah' => $surat->disposisi_tgl_no_naskah,
+                'asal_naskah' => $surat->disposisi_asal_naskah ?? $surat->user?->name,
+                'isi_informasi' => $surat->disposisi_informasi_naskah,
+            ];
         } elseif ($type === 'document') {
             $document = Document::with('creator')->findOrFail($id);
+            $prefill = [
+                'tanggal_naskah' => $document->disposisi_tgl_naskah,
+                'masuk_tu' => $document->disposisi_masuk_tu,
+                'tgl_no_naskah' => $document->disposisi_tgl_no_naskah,
+                'asal_naskah' => $document->disposisi_asal_naskah ?? $document->creator?->name,
+                'isi_informasi' => $document->disposisi_informasi_naskah,
+            ];
         }
 
         $units = Unit::all();
@@ -115,7 +130,7 @@ class DisposisiController extends Controller
         $noAgenda = $this->generateNoAgenda();
 
         $disposisi = null;
-        return view('surat.disposisi.form', compact('type', 'surat', 'document', 'units', 'noAgenda', 'disposisi'));
+        return view('surat.disposisi.form', compact('type', 'surat', 'document', 'units', 'noAgenda', 'disposisi', 'prefill'));
     }
 
     public function store(Request $request)
@@ -217,8 +232,9 @@ class DisposisiController extends Controller
         $surat = $disposisi->surat;
         $document = $disposisi->document;
         $type = $disposisi->surat_id ? 'surat' : 'document';
+        $prefill = [];
 
-        return view('surat.disposisi.form', compact('disposisi', 'type', 'surat', 'document', 'units'));
+        return view('surat.disposisi.form', compact('disposisi', 'type', 'surat', 'document', 'units', 'prefill'));
     }
 
     public function update(Request $request, $id)

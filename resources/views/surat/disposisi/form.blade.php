@@ -41,7 +41,7 @@
                             <div class="form-group">
                                 <label>Tanggal Naskah <span class="text-danger">*</span></label>
                                 <input type="date" class="form-control" name="tanggal_naskah" id="tanggal_naskah"
-                                    value="{{ $disposisi?->tanggal_naskah?->format('Y-m-d') ?? date('Y-m-d') }}">
+                                    value="{{ $disposisi?->tanggal_naskah?->format('Y-m-d') ?? (isset($prefill['tanggal_naskah']) && $prefill['tanggal_naskah'] ? \Carbon\Carbon::parse($prefill['tanggal_naskah'])->format('Y-m-d') : date('Y-m-d')) }}">
                                 <div class="invalid-feedback"></div>
                             </div>
                         </div>
@@ -49,7 +49,7 @@
                             <div class="form-group">
                                 <label>Masuk ke TU <span class="text-danger">*</span></label>
                                 <input type="datetime-local" class="form-control" name="masuk_tu" id="masuk_tu"
-                                    value="{{ $disposisi?->masuk_tu?->format('Y-m-d\TH:i') ?? now()->format('Y-m-d\TH:i') }}">
+                                    value="{{ $disposisi?->masuk_tu?->format('Y-m-d\TH:i') ?? (isset($prefill['masuk_tu']) && $prefill['masuk_tu'] ? \Carbon\Carbon::parse($prefill['masuk_tu'])->format('Y-m-d\TH:i') : now()->format('Y-m-d\TH:i')) }}">
                                 <div class="invalid-feedback"></div>
                             </div>
                         </div>
@@ -92,7 +92,7 @@
                             <div class="form-group">
                                 <label>Tgl / No Naskah <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="tgl_no_naskah" id="tgl_no_naskah"
-                                    value="{{ $disposisi?->tgl_no_naskah ?? '' }}"
+                                    value="{{ $disposisi?->tgl_no_naskah ?? ($prefill['tgl_no_naskah'] ?? '') }}"
                                     placeholder="Contoh: 15-01-2026 / 001/SK/2026">
                                 <div class="invalid-feedback"></div>
                             </div>
@@ -101,7 +101,7 @@
                             <div class="form-group">
                                 <label>Asal Naskah <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="asal_naskah" id="asal_naskah"
-                                    value="{{ $disposisi?->asal_naskah ?? ($surat->user->name ?? '') }}"
+                                    value="{{ $disposisi?->asal_naskah ?? ($prefill['asal_naskah'] ?? ($surat->user->name ?? '')) }}"
                                     placeholder="Asal surat/naskah">
                                 <div class="invalid-feedback"></div>
                             </div>
@@ -111,7 +111,7 @@
                     <div class="form-group">
                         <label>Isi Informasi Naskah <span class="text-danger">*</span></label>
                         <textarea class="form-control" name="isi_informasi" id="isi_informasi" rows="3"
-                            placeholder="Ringkasan isi surat/naskah">{{ $disposisi?->isi_informasi ?? ($surat->perihal ?? '') }}</textarea>
+                            placeholder="Ringkasan isi surat/naskah">{{ $disposisi?->isi_informasi ?? ($prefill['isi_informasi'] ?? ($surat->perihal ?? '')) }}</textarea>
                         <div class="invalid-feedback"></div>
                     </div>
                 </div>

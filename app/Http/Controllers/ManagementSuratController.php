@@ -419,7 +419,13 @@ class ManagementSuratController extends Controller
             'no_surat' => 'required|unique:surats',
             'perihal' => 'required',
             'keterangan' => 'nullable',
-            'file' => 'nullable|file|mimes:pdf,doc,docx|max:5120'
+            'file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
+            'needs_disposisi' => 'nullable|boolean',
+            'disposisi_tgl_naskah' => 'nullable|date',
+            'disposisi_masuk_tu' => 'nullable',
+            'disposisi_tgl_no_naskah' => 'nullable|string|max:255',
+            'disposisi_asal_naskah' => 'nullable|string|max:255',
+            'disposisi_informasi_naskah' => 'nullable|string',
         ]);
 
         $data = [
@@ -428,6 +434,12 @@ class ManagementSuratController extends Controller
             'perihal' => $request->perihal,
             'keterangan' => $request->keterangan,
             'is_read' => false,
+            'needs_disposisi' => $request->boolean('needs_disposisi'),
+            'disposisi_tgl_naskah' => $request->input('disposisi_tgl_naskah'),
+            'disposisi_masuk_tu' => $request->input('disposisi_masuk_tu'),
+            'disposisi_tgl_no_naskah' => $request->input('disposisi_tgl_no_naskah'),
+            'disposisi_asal_naskah' => $request->input('disposisi_asal_naskah'),
+            'disposisi_informasi_naskah' => $request->input('disposisi_informasi_naskah'),
         ];
 
         if ($request->hasFile('file')) {

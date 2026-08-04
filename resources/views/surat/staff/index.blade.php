@@ -88,6 +88,61 @@
                             <div class="invalid-feedback"></div>
                             <div id="currentFile" class="mt-2"></div>
                         </div>
+
+                        <hr class="my-3">
+
+                        <!-- Butuh Disposisi -->
+                        <div class="form-group">
+                            <label>Butuh Disposisi?</label>
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="needs_disposisi"
+                                    name="needs_disposisi" value="1" onchange="toggleKirimDisposisiFields()">
+                                <label class="custom-control-label" for="needs_disposisi">Ya, surat ini butuh disposisi</label>
+                            </div>
+                            <small class="text-muted">Centang untuk mengisi data disposisi yang akan dilihat Direktur</small>
+                        </div>
+
+                        <!-- Disposisi Fields -->
+                        <div id="kirimDisposisiFields" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Tgl Naskah</label>
+                                        <input type="date" class="form-control" id="disposisi_tgl_naskah"
+                                            name="disposisi_tgl_naskah">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Masuk ke TU</label>
+                                        <input type="datetime-local" class="form-control" id="disposisi_masuk_tu"
+                                            name="disposisi_masuk_tu">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Tgl / No Naskah</label>
+                                        <input type="text" class="form-control" id="disposisi_tgl_no_naskah"
+                                            name="disposisi_tgl_no_naskah" placeholder="Contoh: 15-01-2026 / 001/SK/2026">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Asal Naskah</label>
+                                        <input type="text" class="form-control" id="disposisi_asal_naskah"
+                                            name="disposisi_asal_naskah" placeholder="Asal surat/naskah">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Informasi Naskah</label>
+                                <textarea class="form-control" id="disposisi_informasi_naskah"
+                                    name="disposisi_informasi_naskah" rows="2"
+                                    placeholder="Ringkasan isi surat/naskah"></textarea>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
@@ -371,6 +426,11 @@
             });
         }
 
+        function toggleKirimDisposisiFields() {
+            const needsDisposisi = $('#needs_disposisi').is(':checked');
+            $('#kirimDisposisiFields').toggle(needsDisposisi);
+        }
+
         function resetForm() {
             $('#suratForm')[0].reset();
             $('#modalTitle').text('Kirim Surat');
@@ -380,6 +440,8 @@
             $('#currentFile').html('');
             $('.form-control').removeClass('is-invalid');
             $('.invalid-feedback').text('');
+            $('#needs_disposisi').prop('checked', false);
+            $('#kirimDisposisiFields').hide();
         }
     </script>
 @endpush

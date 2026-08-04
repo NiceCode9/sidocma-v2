@@ -232,10 +232,65 @@
                             <label>Is Latter</label>
                             <div class="custom-control custom-switch">
                                 <input type="checkbox" class="custom-control-input" id="is_letter" name="is_letter"
-                                    value="1">
+                                    value="1" onchange="toggleDisposisiSection()">
                                 <label class="custom-control-label" for="is_letter">Mark as Latter Document</label>
                             </div>
                             <small class="form-text text-muted">Centang jika dokumen ini adalah surat/dokumen resmi</small>
+                        </div>
+
+                        <!-- Disposisi Section (tampil saat is_letter dicentang) -->
+                        <div class="form-group" id="disposisiSection" style="display: none;">
+                            <label>Butuh Disposisi?</label>
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="needs_disposisi"
+                                    name="needs_disposisi" value="1" onchange="toggleDisposisiFields()">
+                                <label class="custom-control-label" for="needs_disposisi">Ya, dokumen ini butuh disposisi</label>
+                            </div>
+                            <small class="form-text text-muted">Centang untuk mengisi data disposisi oleh Super Admin</small>
+                        </div>
+
+                        <!-- Disposisi Fields (tampil saat needs_disposisi dicentang) -->
+                        <div id="disposisiFields" style="display: none;">
+                            <hr>
+                            <h6 class="text-primary mb-3"><i class="fas fa-tasks mr-1"></i> Data Disposisi</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Tgl Naskah</label>
+                                        <input type="date" class="form-control" id="disposisi_tgl_naskah"
+                                            name="disposisi_tgl_naskah">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Masuk ke TU</label>
+                                        <input type="datetime-local" class="form-control" id="disposisi_masuk_tu"
+                                            name="disposisi_masuk_tu">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Tgl / No Naskah</label>
+                                        <input type="text" class="form-control" id="disposisi_tgl_no_naskah"
+                                            name="disposisi_tgl_no_naskah" placeholder="Contoh: 15-01-2026 / 001/SK/2026">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Asal Naskah</label>
+                                        <input type="text" class="form-control" id="disposisi_asal_naskah"
+                                            name="disposisi_asal_naskah" placeholder="Asal surat/naskah">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Informasi Naskah</label>
+                                <textarea class="form-control" id="disposisi_informasi_naskah"
+                                    name="disposisi_informasi_naskah" rows="2"
+                                    placeholder="Ringkasan isi surat/naskah"></textarea>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -462,6 +517,9 @@
                 // Reset form dan checkbox saat modal ditutup
                 $('#uploadForm')[0].reset();
                 $('#is_letter').prop('checked', false);
+                $('#needs_disposisi').prop('checked', false);
+                $('#disposisiSection').hide();
+                $('#disposisiFields').hide();
                 $('.custom-file-label').text('Pilih file...');
                 $('#uploadProgress').hide();
                 $('.modal-footer button').prop('disabled', false);
@@ -1683,12 +1741,32 @@
                 });
         }
 
+        function toggleDisposisiSection() {
+            const isLetterChecked = $('#is_letter').is(':checked');
+            $('#disposisiSection').toggle(isLetterChecked);
+            if (!isLetterChecked) {
+                $('#needs_disposisi').prop('checked', false);
+                $('#disposisiFields').hide();
+            }
+        }
+
+        function toggleDisposisiFields() {
+            const needsDisposisi = $('#needs_disposisi').is(':checked');
+            $('#disposisiFields').toggle(needsDisposisi);
+        }
+
         function uploadFiles() {
             const files = $('#fileInput')[0].files;
             const description = $('#fileDescription').val().trim();
             const isLetterChecked = $('#is_letter').is(':checked');
             const category = $('#category').val();
             const documentNumber = $('#document_number').val().trim();
+            const needsDisposisi = $('#needs_disposisi').is(':checked');
+            const disposisiTglNaskah = $('#disposisi_tgl_naskah').val();
+            const disposisiMasukTu = $('#disposisi_masuk_tu').val();
+            const disposisiTglNoNaskah = $('#disposisi_tgl_no_naskah').val().trim();
+            const disposisiAsalNaskah = $('#disposisi_asal_naskah').val().trim();
+            const disposisiInformasiNaskah = $('#disposisi_informasi_naskah').val().trim();
 
             if (files.length === 0) {
                 showAlert('warning', 'Pilih minimal satu file!');
@@ -1710,6 +1788,16 @@
             formData.append('is_letter', isLetterChecked ? '1' : '0');
             formData.append('category', category);
             formData.append('document_number', documentNumber);
+
+            // Data disposisi (hanya jika is_letter & needs_disposisi aktif)
+            formData.append('needs_disposisi', (isLetterChecked && needsDisposisi) ? '1' : '0');
+            if (isLetterChecked && needsDisposisi) {
+                formData.append('disposisi_tgl_naskah', disposisiTglNaskah || '');
+                formData.append('disposisi_masuk_tu', disposisiMasukTu || '');
+                formData.append('disposisi_tgl_no_naskah', disposisiTglNoNaskah || '');
+                formData.append('disposisi_asal_naskah', disposisiAsalNaskah || '');
+                formData.append('disposisi_informasi_naskah', disposisiInformasiNaskah || '');
+            }
 
             // Tambahkan files
             for (let i = 0; i < files.length; i++) {
