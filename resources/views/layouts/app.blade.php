@@ -264,9 +264,9 @@
 
                         <div class="dropdown-menu dropdown-list dropdown-menu-right">
                             <div class="dropdown-header">
-                                Surat Masuk
+                                Notifikasi
                                 <div class="float-right">
-                                    <a href="#" id="mark-all-read" class="text-primary">Mark All As Read</a>
+                                    <a href="#" id="mark-all-read" class="text-primary">Tandai Semua Dibaca</a>
                                 </div>
                             </div>
 
@@ -281,7 +281,7 @@
                             </div>
 
                             <div class="dropdown-footer text-center">
-                                <a href="" class="text-primary">View All <i class="fas fa-chevron-right"></i></a>
+                                <a href="{{ route('management-surat.index') }}" class="text-primary">Lihat Semua <i class="fas fa-chevron-right"></i></a>
                             </div>
                         </div>
                     </li>

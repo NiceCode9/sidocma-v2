@@ -109,6 +109,11 @@ class Document extends Model
         return $this->hasMany(DocumentAccessLog::class);
     }
 
+    public function disposisis()
+    {
+        return $this->hasMany(Disposisi::class);
+    }
+
     // Helper Methods
     public function getFormattedFileSizeAttribute()
     {

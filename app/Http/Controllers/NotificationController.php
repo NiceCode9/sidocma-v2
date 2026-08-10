@@ -37,15 +37,22 @@ class NotificationController extends Controller
             ->map(function ($notification) {
                 $data = $notification->data;
 
+                // Fallback konsisten untuk semua tipe notifikasi
+                $url = $data['action_url'] ?? $data['url'] ?? '#';
+                $sender = $data['sender_name'] ?? $data['creator_name'] ?? $data['actor_name'] ?? 'Sistem';
+                $noSurat = $data['no_surat'] ?? $data['document_number'] ?? $data['no_agenda'] ?? '';
+
                 return [
                     'id' => $notification->id,
                     'type' => $data['type'] ?? 'document',
                     'message' => $data['message'] ?? '',
+                    'sender' => $sender,
+                    'no_surat' => $noSurat,
                     'document_title' => $data['document_title'] ?? '',
                     'document_number' => $data['document_number'] ?? '',
                     'actor_name' => $data['actor_name'] ?? 'Sistem',
                     'folder_name' => $data['folder_name'] ?? '',
-                    'action_url' => $data['action_url'] ?? '#',
+                    'action_url' => $url,
                     'is_read' => $notification->read_at !== null,
                     'time_ago' => $notification->created_at->diffForHumans(),
                     'created_at' => $notification->created_at->toIso8601String(),

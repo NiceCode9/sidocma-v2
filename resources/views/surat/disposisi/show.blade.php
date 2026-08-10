@@ -33,10 +33,10 @@
                                         <i class="fas fa-edit"></i> Edit
                                     </a>
                                 @endif
-                                <a href="{{ route('disposisi.cetak', $disposisi->id) }}" class="btn btn-secondary" target="_blank">
-                                    <i class="fas fa-print"></i> Cetak
-                                </a>
                             @endif
+                            <a href="{{ route('disposisi.cetak', $disposisi->id) }}" class="btn btn-secondary" target="_blank">
+                                <i class="fas fa-print"></i> Cetak
+                            </a>
                         </div>
                     </div>
                     <div class="card-body">

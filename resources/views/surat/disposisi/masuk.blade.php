@@ -105,8 +105,11 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                <a href="{{ route('disposisi.show', $target->disposisi->id) }}" class="btn btn-info btn-sm">
+                                                <a href="{{ route('disposisi.show', $target->disposisi->id) }}" class="btn btn-info btn-sm" title="Lihat">
                                                     <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{{ route('disposisi.cetak', $target->disposisi->id) }}" class="btn btn-secondary btn-sm" target="_blank" title="Cetak">
+                                                    <i class="fas fa-print"></i>
                                                 </a>
                                             </td>
                                         </tr>

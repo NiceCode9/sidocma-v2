@@ -217,12 +217,21 @@ class ManagementSuratController extends Controller
     public function suratKeluarData(Request $request)
     {
         if ($request->ajax()) {
-            $data = Document::with(['creator', 'category', 'folder' => function ($query) {
+            $user = Auth::user();
+
+            $query = Document::with(['creator', 'category', 'folder' => function ($query) {
                 $query->select('id', 'name');
             }])
-                ->where('is_letter', true)
-                ->select('*')
-                ->orderBy('created_at', 'desc');
+                ->where('is_letter', true);
+
+            // Direktur (bukan super admin): hanya surat yang sudah didisposisi olehnya
+            if ($user->hasRole('direktur') && !$user->hasRole('super admin')) {
+                $query->whereHas('disposisis', function ($q) use ($user) {
+                    $q->where('created_by', $user->id);
+                });
+            }
+
+            $data = $query->select('*')->orderBy('created_at', 'desc');
 
             return DataTables::of($data)
                 ->addIndexColumn()
@@ -313,23 +322,26 @@ class ManagementSuratController extends Controller
     public function suratKeluarStats(Request $request)
     {
         if ($request->ajax()) {
-            $total = Document::where('is_letter', true)->count();
+            $user = Auth::user();
+
+            $baseQuery = Document::where('is_letter', true);
+
+            // Direktur (bukan super admin): hanya surat yang sudah didisposisi olehnya
+            if ($user->hasRole('direktur') && !$user->hasRole('super admin')) {
+                $baseQuery->whereHas('disposisis', fn($q) => $q->where('created_by', $user->id));
+            }
+
+            $total = (clone $baseQuery)->count();
 
             // Query dengan whereHas untuk relasi hasOne
-            $dibaca = Document::where('is_letter', true)
+            $dibaca = (clone $baseQuery)
                 ->whereHas('shares', function ($query) {
                     $query->where('is_read', true);
                 })
                 ->count();
 
-            $belumDibaca = Document::where('is_letter', true)
-                ->whereHas('shares', function ($query) {
-                    $query->where('is_read', false);
-                })
-                ->count();
-
             // Atau untuk dokumen yang belum punya shares sama sekali
-            $belumDibacaTotal = Document::where('is_letter', true)
+            $belumDibacaTotal = (clone $baseQuery)
                 ->where(function ($query) {
                     $query->whereHas('shares', function ($subQuery) {
                         $subQuery->where('is_read', false);
@@ -337,7 +349,7 @@ class ManagementSuratController extends Controller
                 })
                 ->count();
 
-            $hariIni = Document::where('is_letter', true)
+            $hariIni = (clone $baseQuery)
                 ->whereDate('created_at', today())
                 ->count();
 

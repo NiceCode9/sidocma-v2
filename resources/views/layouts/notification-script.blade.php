@@ -28,7 +28,6 @@
                 e.preventDefault();
                 this.markAllAsRead();
             });
-
             // Load notifications when dropdown is opened
             this.bellElement?.addEventListener('click', () => {
                 this.loadNotifications();
@@ -221,8 +220,8 @@
                 <div class="dropdown-item-desc">
                     <div class="font-weight-bold">${notification.message}</div>
                     <div class="text-small text-muted mt-1">
-                        <span class="badge badge-light mr-1">${notification.no_surat}</span>
-                        Dari: ${notification.sender}
+                        ${notification.no_surat ? `<span class="badge badge-light mr-1">${notification.no_surat}</span>` : ''}
+                        Dari: ${notification.sender || 'Sistem'}
                     </div>
                     <div class="time ${!notification.is_read ? 'text-primary font-weight-bold' : 'text-muted'} mt-1">
                         <i class="far fa-clock mr-1"></i>${notification.time_ago}
@@ -241,9 +240,15 @@
         try {
             await this.markAsRead(notificationId);
 
-            // Optional: redirect to surat detail or management page
-            window.open(notificationUrl, '_blank', 'width=800,height=600');
+            if (notificationUrl && notificationUrl !== '#') {
+                // Tutup dropdown sebelum pindah halaman
+                if (typeof $ !== 'undefined' && this.bellElement) {
+                    $(this.bellElement).dropdown('hide');
+                }
 
+                // Navigasi di tab yang sama (bukan window.open)
+                window.location.href = notificationUrl;
+            }
         } catch (error) {
             console.error('Error handling notification click:', error);
         }
@@ -305,7 +310,7 @@
             }
         } finally {
             // Reset button state
-            this.markAllReadBtn.innerHTML = 'Mark All As Read';
+            this.markAllReadBtn.innerHTML = 'Tandai Semua Dibaca';
             this.markAllReadBtn.style.pointerEvents = 'auto';
         }
     }

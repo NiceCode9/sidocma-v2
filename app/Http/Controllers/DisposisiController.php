@@ -367,6 +367,7 @@ class DisposisiController extends Controller
         $user = Auth::user();
         $disposisiTargets = DisposisiTarget::with(['disposisi.creator', 'disposisi.targets.unit', 'unit'])
             ->where('unit_id', $user->unit_id)
+            ->orderBy('created_at', 'desc')
             ->get();
 
         return view('surat.disposisi.masuk', compact('disposisiTargets'));

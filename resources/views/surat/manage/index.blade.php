@@ -234,7 +234,37 @@
                 serverSide: true,
                 ajax: {
                     url: "{{ route('management-surat.surat-masuk.data') }}",
-                    type: "GET"
+                    type: "GET",
+                    dataType: 'json',
+                    beforeSend: function(xhr) {
+                        console.log('DataTables AJAX request started:', {
+                            table: 'suratMasukTable',
+                            url: '{{ route('surat-masuk.index') }}',
+                            xhr: xhr
+                        });
+                    },
+                    dataSrc: function(json) {
+                        console.log('DataTables AJAX response received:', json);
+
+                        if (json && json.data) {
+                            return json.data;
+                        }
+
+                        return json;
+                    },
+                    error: function(xhr, textStatus, errorThrown) {
+                        console.group('DataTables AJAX Error - suratMasukTable');
+                        console.error('URL:', '{{ route('surat-masuk.index') }}');
+                        console.error('textStatus:', textStatus);
+                        console.error('errorThrown:', errorThrown);
+                        console.error('HTTP Status:', xhr.status);
+                        console.error('Status Text:', xhr.statusText);
+                        console.error('Response Text:', xhr.responseText);
+                        console.error('XHR Object:', xhr);
+                        console.groupEnd();
+
+                        alert('DataTables AJAX error: lihat console browser untuk detail.');
+                    }
                 },
                 columns: [{
                         data: 'DT_RowIndex',

@@ -263,7 +263,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Masuk ke TU</label>
+                                        <label>Masuk ke Sekretariat</label>
                                         <input type="datetime-local" class="form-control" id="disposisi_masuk_tu"
                                             name="disposisi_masuk_tu">
                                     </div>
