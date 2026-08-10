@@ -33,8 +33,10 @@
                             <div class="form-group">
                                 <label>Nomor Agenda <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="no_agenda" id="no_agenda"
-                                    value="{{ $disposisi?->no_agenda ?? $noAgenda }}" readonly>
-                                <small class="text-muted">Diisi otomatis</small>
+                                    value="{{ $disposisi?->no_agenda ?? '' }}"
+                                    placeholder="Contoh: AGND/2026/0001">
+                                <small class="text-muted">Diisi sesuai nomor agenda surat</small>
+                                <div class="invalid-feedback"></div>
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -47,7 +49,7 @@
                         </div>
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label>Masuk ke TU <span class="text-danger">*</span></label>
+                                <label>Masuk ke Sekretariat <span class="text-danger">*</span></label>
                                 <input type="datetime-local" class="form-control" name="masuk_tu" id="masuk_tu"
                                     value="{{ $disposisi?->masuk_tu?->format('Y-m-d\TH:i') ?? (isset($prefill['masuk_tu']) && $prefill['masuk_tu'] ? \Carbon\Carbon::parse($prefill['masuk_tu'])->format('Y-m-d\TH:i') : now()->format('Y-m-d\TH:i')) }}">
                                 <div class="invalid-feedback"></div>
@@ -401,9 +403,6 @@
         const url = isEdit ? `{{ url("disposisi") }}/${id}` : '{{ route("disposisi.store") }}';
         const method = isEdit ? 'PUT' : 'POST';
 
-        // Remove disabled attr on readonly fields so they submit
-        $('#no_agenda').prop('disabled', false);
-
         $.ajax({
             url: url,
             type: 'POST',
@@ -436,8 +435,6 @@
                     toastr.error(xhr.responseJSON?.message || 'Terjadi kesalahan server');
                     console.error('Server error:', xhr.responseJSON);
                 }
-                // Re-disable agenda field
-                $('#no_agenda').prop('disabled', true);
             }
         });
     });

@@ -113,6 +113,8 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{id}', [\App\Http\Controllers\DisposisiController::class, 'destroy'])->name('destroy');
         Route::patch('/{id}/selesaikan', [\App\Http\Controllers\DisposisiController::class, 'selesaikan'])->name('selesaikan');
         Route::get('/{id}/cetak', [\App\Http\Controllers\DisposisiController::class, 'cetak'])->name('cetak');
+        Route::get('/{id}/teruskan', [\App\Http\Controllers\DisposisiController::class, 'forward'])->name('forward');
+        Route::post('/{id}/teruskan', [\App\Http\Controllers\DisposisiController::class, 'processForward'])->name('forward-process');
     });
 
     // Disposisi Masuk (untuk unit tujuan)

@@ -42,6 +42,12 @@ class DisposisiController extends Controller
 
             return DataTables::of($data)
                 ->addIndexColumn()
+                ->addColumn('no_agenda', function ($row) {
+                    $icon = $row->forwarded_from
+                        ? ' <i class="fas fa-share text-primary" title="Hasil teruskan dari disposisi lain"></i>'
+                        : '';
+                    return $row->no_agenda . $icon;
+                })
                 ->addColumn('asal', function ($row) {
                     if ($row->surat) {
                         return $row->surat->perihal;
@@ -82,6 +88,9 @@ class DisposisiController extends Controller
                 ->addColumn('action', function ($row) {
                     $btn = '<div class="btn-group" role="group">';
                     $btn .= '<a href="' . route('disposisi.show', $row->id) . '" class="btn btn-info btn-sm" title="Lihat"><i class="fas fa-eye"></i></a>';
+                    if (auth()->user()->hasRole('super admin')) {
+                        $btn .= '<button type="button" class="btn btn-primary btn-sm" onclick="teruskanDisposisi(' . $row->id . ')" title="Teruskan"><i class="fas fa-share"></i></button>';
+                    }
                     if ($row->isEditable()) {
                         $btn .= '<a href="' . route('disposisi.edit', $row->id) . '" class="btn btn-warning btn-sm" title="Edit"><i class="fas fa-edit"></i></a>';
                         $btn .= '<button type="button" class="btn btn-success btn-sm" onclick="selesaikanDisposisi(' . $row->id . ')" title="Selesaikan"><i class="fas fa-check"></i></button>';
@@ -91,7 +100,7 @@ class DisposisiController extends Controller
                     $btn .= '</div>';
                     return $btn;
                 })
-                ->rawColumns(['sifat_badge', 'status_badge', 'action'])
+                ->rawColumns(['no_agenda', 'sifat_badge', 'status_badge', 'action'])
                 ->make(true);
         }
     }
@@ -127,10 +136,8 @@ class DisposisiController extends Controller
 
         $units = Unit::all();
 
-        $noAgenda = $this->generateNoAgenda();
-
         $disposisi = null;
-        return view('surat.disposisi.form', compact('type', 'surat', 'document', 'units', 'noAgenda', 'disposisi', 'prefill'));
+        return view('surat.disposisi.form', compact('type', 'surat', 'document', 'units', 'disposisi', 'prefill'));
     }
 
     public function store(Request $request)
@@ -139,7 +146,7 @@ class DisposisiController extends Controller
             'type' => 'required|in:surat,document',
             'surat_id' => 'nullable|required_if:type,surat|exists:surats,id',
             'document_id' => 'nullable|required_if:type,document|exists:documents,id',
-            'no_agenda' => 'required|unique:disposisis,no_agenda',
+            'no_agenda' => 'required|string|max:255',
             'tanggal_naskah' => 'required|date',
             'masuk_tu' => 'required',
             'tgl_no_naskah' => 'required',
@@ -214,7 +221,7 @@ class DisposisiController extends Controller
 
     public function show($id)
     {
-        $disposisi = Disposisi::with(['surat', 'document', 'targets.unit', 'creator', 'approver'])->findOrFail($id);
+        $disposisi = Disposisi::with(['surat', 'document', 'targets.unit', 'creator', 'approver', 'forwardedFrom'])->findOrFail($id);
         $this->authorizeDisposisiAccess($disposisi);
         return view('surat.disposisi.show', compact('disposisi'));
     }
@@ -249,7 +256,7 @@ class DisposisiController extends Controller
         }
 
         $request->validate([
-            'no_agenda' => 'required|unique:disposisis,no_agenda,' . $id,
+            'no_agenda' => 'required|string|max:255',
             'tanggal_naskah' => 'required|date',
             'masuk_tu' => 'required',
             'tgl_no_naskah' => 'required',
@@ -414,6 +421,100 @@ class DisposisiController extends Controller
 
         if (!$isTarget) {
             abort(403, 'Anda tidak memiliki akses ke disposisi ini.');
+        }
+    }
+
+    public function forward($id)
+    {
+        $disposisi = Disposisi::with(['surat', 'document', 'targets.unit', 'creator'])->findOrFail($id);
+
+        $asal = $disposisi->surat?->perihal
+            ?? $disposisi->document?->title
+            ?? $disposisi->asal_naskah
+            ?? '-';
+
+        $targetUnitIds = $disposisi->targets->pluck('unit_id')->toArray();
+        $units = Unit::whereNotIn('id', $targetUnitIds)->get(['id', 'name']);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $disposisi->id,
+                'no_agenda' => $disposisi->no_agenda,
+                'asal' => $asal,
+                'sifat' => $disposisi->sifat,
+                'status' => $disposisi->status->label(),
+            ],
+            'units' => $units,
+        ]);
+    }
+
+    public function processForward(Request $request, $id)
+    {
+        if (!Auth::user()->hasRole('super admin')) {
+            abort(403, 'Hanya super admin yang dapat meneruskan disposisi.');
+        }
+
+        $source = Disposisi::with('targets')->findOrFail($id);
+
+        $request->validate([
+            'no_agenda' => 'required|string|max:255',
+            'unit_ids' => 'required|array|min:1',
+            'unit_ids.*' => 'exists:units,id',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $newDisposisi = Disposisi::create([
+                'surat_id' => $source->surat_id,
+                'document_id' => $source->document_id,
+                'no_agenda' => $request->no_agenda,
+                'tanggal_naskah' => $source->tanggal_naskah,
+                'masuk_tu' => $source->masuk_tu,
+                'tgl_no_naskah' => $source->tgl_no_naskah,
+                'asal_naskah' => $source->asal_naskah,
+                'isi_informasi' => $source->isi_informasi,
+                'sifat' => $source->sifat,
+                'catatan_lain' => $source->catatan_lain,
+                'batas_waktu' => $source->batas_waktu,
+                'status' => DisposisiStatus::Diproses,
+                'created_by' => Auth::id(),
+                'forwarded_from' => $source->id,
+            ]);
+
+            $instruction = $source->targets->first()?->instruksi ?? ['perhatian'];
+
+            foreach ($request->unit_ids as $unitId) {
+                DisposisiTarget::create([
+                    'disposisi_id' => $newDisposisi->id,
+                    'unit_id' => $unitId,
+                    'instruksi' => $instruction,
+                    'keterangan' => 'Diteruskan oleh Super Admin',
+                ]);
+            }
+
+            DB::commit();
+
+            // Notifikasi ke unit tujuan baru
+            $targetUsers = User::whereIn('unit_id', $request->unit_ids)->get();
+            if ($targetUsers->isNotEmpty()) {
+                Notification::send($targetUsers, new DisposisiNotification($newDisposisi, 'baru', Auth::user()));
+            }
+
+            broadcast(new \App\Events\DisposisiCreate($newDisposisi));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Disposisi berhasil diteruskan',
+                'data' => $newDisposisi,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal meneruskan disposisi: ' . $e->getMessage(),
+            ], 500);
         }
     }
 

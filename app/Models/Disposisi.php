@@ -25,6 +25,7 @@ class Disposisi extends Model
         'status',
         'created_by',
         'approved_by',
+        'forwarded_from',
     ];
 
     protected $casts = [
@@ -57,6 +58,16 @@ class Disposisi extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function forwardedFrom()
+    {
+        return $this->belongsTo(Disposisi::class, 'forwarded_from');
+    }
+
+    public function forwardedDisposisis()
+    {
+        return $this->hasMany(Disposisi::class, 'forwarded_from');
     }
 
     public function scopeByStatus($query, $status)

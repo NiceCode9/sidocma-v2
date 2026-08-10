@@ -40,6 +40,16 @@
                         </div>
                     </div>
                     <div class="card-body">
+                        @if ($disposisi->forwardedFrom)
+                        <div class="alert alert-primary">
+                            <i class="fas fa-share mr-1"></i>
+                            <strong>Diteruskan dari:</strong>
+                            <a href="{{ route('disposisi.show', $disposisi->forwardedFrom->id) }}">
+                                {{ $disposisi->forwardedFrom->no_agenda }}
+                            </a>
+                            <span class="text-muted">- {{ $disposisi->forwardedFrom->asal_naskah }}</span>
+                        </div>
+                        @endif
                         <div class="row mb-4">
                             <div class="col-md-12">
                                 <div class="alert alert-info">
