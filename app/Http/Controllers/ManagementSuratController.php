@@ -99,6 +99,7 @@ class ManagementSuratController extends Controller
 
             $docList = Document::with('creator.unit')
                 ->where('is_letter', true)
+                ->where('needs_disposisi', true)
                 ->where('is_active', true)
                 ->get()
                 ->map(function ($item) use ($disposisiStatuses) {
@@ -192,17 +193,17 @@ class ManagementSuratController extends Controller
         $suratBelum = Surat::whereNull('read_at')->count();
         $suratHariIni = Surat::whereDate('created_at', today())->count();
 
-        $docTotal = Document::where('is_letter', true)->where('is_active', true)->count();
-        $docDibaca = Document::where('is_letter', true)->where('is_active', true)
+        $docTotal = Document::where('is_letter', true)->where('needs_disposisi', true)->where('is_active', true)->count();
+        $docDibaca = Document::where('is_letter', true)->where('needs_disposisi', true)->where('is_active', true)
             ->whereHas('shares', fn($q) => $q->where('is_read', true))
             ->count();
-        $docBelum = Document::where('is_letter', true)->where('is_active', true)
+        $docBelum = Document::where('is_letter', true)->where('needs_disposisi', true)->where('is_active', true)
             ->where(function ($q) {
                 $q->whereHas('shares', fn($sq) => $sq->where('is_read', false))
                   ->orWhereDoesntHave('shares');
             })
             ->count();
-        $docHariIni = Document::where('is_letter', true)->where('is_active', true)
+        $docHariIni = Document::where('is_letter', true)->where('needs_disposisi', true)->where('is_active', true)
             ->whereDate('created_at', today())
             ->count();
 
