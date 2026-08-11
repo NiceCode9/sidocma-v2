@@ -90,10 +90,10 @@
         <thead>
             <tr>
                 <th width="5%">No</th>
-                <th width="25%">Unit Kerja</th>
-                <th width="45%">Instruksi</th>
-                <th width="12%">Paraf</th>
-                <th width="13%">Tanggal</th>
+                <th width="20%">Unit Kerja</th>
+                <th width="40%">Instruksi</th>
+                <th width="20%">Catatan</th>
+                <th width="15%">Paraf / Tanggal</th>
             </tr>
         </thead>
         <tbody>
@@ -119,12 +119,12 @@
                         <span class="instruksi-item">&check; {{ $instruksiLabels[$inst] ?? $inst }}</span>
                     @endforeach
                 </td>
-                <td></td>
+                <td>{{ $target->keterangan ?? '' }}</td>
                 <td></td>
             </tr>
             @empty
             <tr>
-                <td colspan="5" style="text-align: center;">Tidak ada target</td>
+                <td colspan="6" style="text-align: center;">Tidak ada target</td>
             </tr>
             @endforelse
         </tbody>

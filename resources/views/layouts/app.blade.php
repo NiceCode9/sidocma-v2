@@ -371,9 +371,12 @@
                                     href="{{ route('surat-masuk.index') }}"><i class="fas fa-inbox"></i>
                                     <span>Surat Masuk</span></a></li>
                         @endif
-                        <li class="{{ request()->routeIs('disposisi.masuk*') ? 'active' : '' }}"><a class="nav-link"
-                                href="{{ route('disposisi.masuk') }}"><i class="fas fa-inbox"></i>
-                                <span>Disposisi Masuk</span></a></li>
+
+                        @if (!auth()->user()->hasRole('direktur'))
+                            <li class="{{ request()->routeIs('disposisi.masuk*') ? 'active' : '' }}"><a class="nav-link"
+                                    href="{{ route('disposisi.masuk') }}"><i class="fas fa-inbox"></i>
+                                    <span>Disposisi Masuk</span></a></li>
+                        @endif
                     </ul>
                 </aside>
             </div>
