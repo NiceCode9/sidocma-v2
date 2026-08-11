@@ -22,17 +22,14 @@
                     <div class="card-header">
                         <h4>Disposisi: {{ $disposisi->no_agenda }}</h4>
                         <div class="card-header-action">
-                            @if (auth()->user()->hasRole(['super admin', 'direktur']))
-                                @if ($disposisi->status !== \App\Enums\DisposisiStatus::Selesai)
-                                    <button type="button" class="btn btn-success" onclick="selesaikanDisposisi({{ $disposisi->id }})">
-                                        <i class="fas fa-check"></i> Selesaikan
-                                    </button>
-                                @endif
-                                @if ($disposisi->isEditable())
-                                    <a href="{{ route('disposisi.edit', $disposisi->id) }}" class="btn btn-warning">
-                                        <i class="fas fa-edit"></i> Edit
-                                    </a>
-                                @endif
+                            @php $canManage = $disposisi->isEditable() && $disposisi->canManage(auth()->user()); @endphp
+                            @if ($canManage)
+                                <button type="button" class="btn btn-success" onclick="selesaikanDisposisi({{ $disposisi->id }})">
+                                    <i class="fas fa-check"></i> Selesaikan
+                                </button>
+                                <a href="{{ route('disposisi.edit', $disposisi->id) }}" class="btn btn-warning">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
                             @endif
                             <a href="{{ route('disposisi.cetak', $disposisi->id) }}" class="btn btn-secondary" target="_blank">
                                 <i class="fas fa-print"></i> Cetak

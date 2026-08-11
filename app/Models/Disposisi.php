@@ -77,7 +77,14 @@ class Disposisi extends Model
 
     public function isEditable(): bool
     {
-        return $this->status === DisposisiStatus::Draft;
+        return $this->status === DisposisiStatus::Diproses;
+    }
+
+    public function canManage(User $user): bool
+    {
+        if ($user->hasRole('super admin')) return true;
+
+        return $user->hasRole('direktur') && $this->created_by === $user->id;
     }
 
     public function getTargetUnitIds(): array

@@ -91,7 +91,7 @@ class DisposisiController extends Controller
                     if (auth()->user()->hasRole('super admin')) {
                         $btn .= '<button type="button" class="btn btn-primary btn-sm" onclick="teruskanDisposisi(' . $row->id . ')" title="Teruskan"><i class="fas fa-share"></i></button>';
                     }
-                    if ($row->isEditable()) {
+                    if ($row->isEditable() && $row->canManage(auth()->user())) {
                         $btn .= '<a href="' . route('disposisi.edit', $row->id) . '" class="btn btn-warning btn-sm" title="Edit"><i class="fas fa-edit"></i></a>';
                         $btn .= '<button type="button" class="btn btn-success btn-sm" onclick="selesaikanDisposisi(' . $row->id . ')" title="Selesaikan"><i class="fas fa-check"></i></button>';
                         $btn .= '<button type="button" class="btn btn-danger btn-sm" onclick="hapusDisposisi(' . $row->id . ')" title="Hapus"><i class="fas fa-trash"></i></button>';
@@ -117,6 +117,7 @@ class DisposisiController extends Controller
         if ($type === 'surat') {
             $surat = Surat::with('user')->findOrFail($id);
             $prefill = [
+                'no_agenda' => $surat->disposisi_no_agenda,
                 'tanggal_naskah' => $surat->disposisi_tgl_naskah,
                 'masuk_tu' => $surat->disposisi_masuk_tu,
                 'tgl_no_naskah' => $surat->disposisi_tgl_no_naskah,
@@ -126,6 +127,7 @@ class DisposisiController extends Controller
         } elseif ($type === 'document') {
             $document = Document::with('creator')->findOrFail($id);
             $prefill = [
+                'no_agenda' => $document->disposisi_no_agenda,
                 'tanggal_naskah' => $document->disposisi_tgl_naskah,
                 'masuk_tu' => $document->disposisi_masuk_tu,
                 'tgl_no_naskah' => $document->disposisi_tgl_no_naskah,
@@ -232,7 +234,12 @@ class DisposisiController extends Controller
 
         if (!$disposisi->isEditable()) {
             return redirect()->route('disposisi.show', $id)
-                ->with('error', 'Disposisi sudah diproses dan tidak dapat diedit.');
+                ->with('error', 'Disposisi sudah selesai dan tidak dapat diedit.');
+        }
+
+        if (!$disposisi->canManage(Auth::user())) {
+            return redirect()->route('disposisi.show', $id)
+                ->with('error', 'Anda tidak memiliki izin untuk mengedit disposisi ini.');
         }
 
         $units = Unit::all();
@@ -251,8 +258,15 @@ class DisposisiController extends Controller
         if (!$disposisi->isEditable()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Disposisi sudah diproses dan tidak dapat diedit.',
+                'message' => 'Disposisi sudah selesai dan tidak dapat diedit.',
             ], 422);
+        }
+
+        if (!$disposisi->canManage(Auth::user())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki izin untuk mengedit disposisi ini.',
+            ], 403);
         }
 
         $request->validate([
@@ -274,6 +288,9 @@ class DisposisiController extends Controller
 
         try {
             DB::beginTransaction();
+
+            // Simpan unit target lama SEBELUM dihapus (untuk notifikasi)
+            $oldUnitIds = $disposisi->targets()->pluck('unit_id')->map(fn($v) => (int) $v)->toArray();
 
             $disposisi->update([
                 'no_agenda' => $request->no_agenda,
@@ -301,6 +318,41 @@ class DisposisiController extends Controller
 
             DB::commit();
 
+            // Hitung perubahan unit target & kirim notifikasi
+            $newUnitIds = collect($request->targets)
+                ->pluck('unit_id')
+                ->map(fn($v) => (int) $v)
+                ->toArray();
+
+            $added   = array_diff($newUnitIds, $oldUnitIds);
+            $removed = array_diff($oldUnitIds, $newUnitIds);
+            $kept    = array_intersect($oldUnitIds, $newUnitIds);
+
+            $actor = Auth::user();
+
+            if (!empty($added)) {
+                $users = User::whereIn('unit_id', $added)->get();
+                if ($users->isNotEmpty()) {
+                    Notification::send($users, new DisposisiNotification($disposisi, 'baru', $actor));
+                }
+            }
+
+            if (!empty($removed)) {
+                $users = User::whereIn('unit_id', $removed)->get();
+                if ($users->isNotEmpty()) {
+                    Notification::send($users, new DisposisiNotification($disposisi, 'dibatalkan', $actor));
+                }
+            }
+
+            if (!empty($kept)) {
+                $users = User::whereIn('unit_id', $kept)->get();
+                if ($users->isNotEmpty()) {
+                    Notification::send($users, new DisposisiNotification($disposisi, 'diupdate', $actor));
+                }
+            }
+
+            broadcast(new \App\Events\DisposisiCreate($disposisi));
+
             return response()->json([
                 'success' => true,
                 'message' => 'Disposisi berhasil diupdate',
@@ -321,8 +373,15 @@ class DisposisiController extends Controller
         if (!$disposisi->isEditable()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Disposisi sudah diproses dan tidak dapat dihapus.',
+                'message' => 'Disposisi sudah selesai dan tidak dapat dihapus.',
             ], 422);
+        }
+
+        if (!$disposisi->canManage(Auth::user())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki izin untuk menghapus disposisi ini.',
+            ], 403);
         }
 
         $disposisi->delete();
@@ -336,6 +395,13 @@ class DisposisiController extends Controller
     public function selesaikan($id)
     {
         $disposisi = Disposisi::findOrFail($id);
+
+        if (!$disposisi->canManage(Auth::user())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki izin untuk menyelesaikan disposisi ini.',
+            ], 403);
+        }
 
         if ($disposisi->status === DisposisiStatus::Selesai) {
             return response()->json([

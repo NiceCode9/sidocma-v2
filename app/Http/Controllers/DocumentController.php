@@ -44,6 +44,7 @@ class DocumentController extends Controller
             'files.*' => 'required|file|mimes:pdf,docx,doc,xlsx,xls,ppt,pptx,zip|max:20480',
             'is_letter' => 'boolean',
             'needs_disposisi' => 'nullable|boolean',
+            'disposisi_no_agenda' => 'nullable|string|max:255',
             'disposisi_tgl_naskah' => 'nullable|date',
             'disposisi_masuk_tu' => 'nullable',
             'disposisi_tgl_no_naskah' => 'nullable|string|max:255',
@@ -67,6 +68,7 @@ class DocumentController extends Controller
         $isLatter = $request->boolean('is_letter');
         $category = $request->input('category');
         $needsDisposisi = $request->boolean('needs_disposisi');
+        $disposisiNoAgenda = $request->input('disposisi_no_agenda');
         $disposisiTglNaskah = $request->input('disposisi_tgl_naskah');
         $disposisiMasukTu = $request->input('disposisi_masuk_tu');
         $disposisiTglNoNaskah = $request->input('disposisi_tgl_no_naskah');
@@ -86,6 +88,7 @@ class DocumentController extends Controller
                     $documentNumber,
                     $category,
                     $needsDisposisi,
+                    $disposisiNoAgenda,
                     $disposisiTglNaskah,
                     $disposisiMasukTu,
                     $disposisiTglNoNaskah,

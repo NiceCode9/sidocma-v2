@@ -107,11 +107,20 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
+                                        <label>Nomor Agenda</label>
+                                        <input type="text" class="form-control" id="disposisi_no_agenda"
+                                            name="disposisi_no_agenda" placeholder="Contoh: AGND/2026/0001">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
                                         <label>Tgl Naskah</label>
                                         <input type="date" class="form-control" id="disposisi_tgl_naskah"
                                             name="disposisi_tgl_naskah">
                                     </div>
                                 </div>
+                            </div>
+                            <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Masuk ke TU</label>
@@ -119,8 +128,6 @@
                                             name="disposisi_masuk_tu">
                                     </div>
                                 </div>
-                            </div>
-                            <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Tgl / No Naskah</label>
@@ -128,6 +135,8 @@
                                             name="disposisi_tgl_no_naskah" placeholder="Contoh: 15-01-2026 / 001/SK/2026">
                                     </div>
                                 </div>
+                            </div>
+                            <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Asal Naskah</label>

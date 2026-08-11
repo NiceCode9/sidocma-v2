@@ -21,6 +21,7 @@ class Surat extends Model
         'opened_by',
         'read_at',
         'needs_disposisi',
+        'disposisi_no_agenda',
         'disposisi_tgl_naskah',
         'disposisi_masuk_tu',
         'disposisi_tgl_no_naskah',

@@ -33,7 +33,7 @@
                             <div class="form-group">
                                 <label>Nomor Agenda <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" name="no_agenda" id="no_agenda"
-                                    value="{{ $disposisi?->no_agenda ?? '' }}"
+                                    value="{{ $disposisi?->no_agenda ?? ($prefill['no_agenda'] ?? '') }}"
                                     placeholder="Contoh: AGND/2026/0001">
                                 <small class="text-muted">Diisi sesuai nomor agenda surat</small>
                                 <div class="invalid-feedback"></div>

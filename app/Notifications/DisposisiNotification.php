@@ -49,7 +49,9 @@ class DisposisiNotification extends Notification implements ShouldQueue
             'surat_info' => $suratInfo,
             'creator_name' => $this->disposisi->creator->name ?? 'Unknown',
             'message' => $this->message,
-            'url' => route('disposisi.show', $this->disposisi->id),
+            'url' => $this->type === 'dibatalkan'
+                ? route('disposisi.masuk')
+                : route('disposisi.show', $this->disposisi->id),
         ];
     }
 
@@ -65,6 +67,8 @@ class DisposisiNotification extends Notification implements ShouldQueue
         return match ($this->type) {
             'baru' => "Disposisi baru dari {$actorName}: {$this->disposisi->no_agenda}",
             'selesai' => "Disposisi {$this->disposisi->no_agenda} telah selesai oleh {$actorName}",
+            'diupdate' => "Disposisi {$this->disposisi->no_agenda} telah diperbarui oleh {$actorName}",
+            'dibatalkan' => "Disposisi {$this->disposisi->no_agenda} tidak lagi ditujukan ke unit Anda",
             default => "Notifikasi disposisi: {$this->disposisi->no_agenda}",
         };
     }

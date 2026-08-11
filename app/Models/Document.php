@@ -31,6 +31,7 @@ class Document extends Model
         'is_confidential',
         'expiry_date',
         'needs_disposisi',
+        'disposisi_no_agenda',
         'disposisi_tgl_naskah',
         'disposisi_masuk_tu',
         'disposisi_tgl_no_naskah',
