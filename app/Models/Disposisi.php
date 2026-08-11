@@ -87,6 +87,22 @@ class Disposisi extends Model
         return $user->hasRole('direktur') && $this->created_by === $user->id;
     }
 
+    public function canEdit(User $user): bool
+    {
+        if (!$this->canManage($user)) return false;
+
+        // Super admin boleh edit semua status
+        if ($user->hasRole('super admin')) return true;
+
+        // Selainnya (direktur) hanya status diproses
+        return $this->status === DisposisiStatus::Diproses;
+    }
+
+    public function canDelete(User $user): bool
+    {
+        return $this->canEdit($user);
+    }
+
     public function getTargetUnitIds(): array
     {
         return $this->targets->pluck('unit_id')->toArray();

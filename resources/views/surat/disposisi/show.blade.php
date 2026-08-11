@@ -22,11 +22,12 @@
                     <div class="card-header">
                         <h4>Disposisi: {{ $disposisi->no_agenda }}</h4>
                         <div class="card-header-action">
-                            @php $canManage = $disposisi->isEditable() && $disposisi->canManage(auth()->user()); @endphp
-                            @if ($canManage)
+                            @if ($disposisi->isEditable() && $disposisi->canManage(auth()->user()))
                                 <button type="button" class="btn btn-success" onclick="selesaikanDisposisi({{ $disposisi->id }})">
                                     <i class="fas fa-check"></i> Selesaikan
                                 </button>
+                            @endif
+                            @if ($disposisi->canEdit(auth()->user()))
                                 <a href="{{ route('disposisi.edit', $disposisi->id) }}" class="btn btn-warning">
                                     <i class="fas fa-edit"></i> Edit
                                 </a>
