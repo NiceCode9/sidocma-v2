@@ -7,9 +7,61 @@
 
     // ===== Detect touch device =====
     const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    // ===== Reveal on Load (harus jalan di semua perangkat) =====
+    setTimeout(() => {
+        document.querySelectorAll('.reveal-left, .reveal-right, .reveal-up').forEach(el => {
+            el.classList.add('visible');
+        });
+    }, 200);
+
+    // ===== Theme Toggle (default = dark) =====
+    const html = document.documentElement;
+    const themeIcon = document.getElementById('theme-icon');
+    const themeIconMobile = document.getElementById('theme-icon-mobile');
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeToggleMobile = document.getElementById('theme-toggle-mobile');
+
+    function applyTheme(theme) {
+        if (theme === 'light') {
+            html.classList.remove('dark');
+            if (themeIcon) { themeIcon.classList.remove('fa-moon'); themeIcon.classList.add('fa-sun'); }
+            if (themeIconMobile) { themeIconMobile.classList.remove('fa-moon'); themeIconMobile.classList.add('fa-sun'); }
+        } else {
+            html.classList.add('dark');
+            if (themeIcon) { themeIcon.classList.remove('fa-sun'); themeIcon.classList.add('fa-moon'); }
+            if (themeIconMobile) { themeIconMobile.classList.remove('fa-sun'); themeIconMobile.classList.add('fa-moon'); }
+        }
+    }
+
+    // Read saved theme (default dark)
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    applyTheme(savedTheme);
+
+    function toggleTheme() {
+        const newTheme = html.classList.contains('dark') ? 'light' : 'dark';
+        localStorage.setItem('theme', newTheme);
+        applyTheme(newTheme);
+    }
+
+    themeToggle?.addEventListener('click', toggleTheme);
+    themeToggleMobile?.addEventListener('click', toggleTheme);
+
+    // ===== Navbar Scroll =====
+    const navbar = document.getElementById('navbar');
+    const handleScroll = () => {
+        if (window.scrollY > 50) {
+            navbar?.classList.add('navbar-scrolled');
+        } else {
+            navbar?.classList.remove('navbar-scrolled');
+        }
+    };
+    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+
+    // ===== Custom Cursor (hanya untuk perangkat non-touch) =====
     if (isTouch) return;
 
-    // ===== Custom Cursor =====
     const cursorDot = document.querySelector('.cursor-dot');
     const cursorRing = document.querySelector('.cursor-ring');
     const cursorTrail = document.querySelector('.cursor-trail');
@@ -89,57 +141,6 @@
             btn.style.transform = 'translate(0, 0)';
         });
     });
-
-    // ===== Reveal on Load =====
-    setTimeout(() => {
-        document.querySelectorAll('.reveal-left, .reveal-right, .reveal-up').forEach(el => {
-            el.classList.add('visible');
-        });
-    }, 200);
-
-    // ===== Theme Toggle (default = dark) =====
-    const html = document.documentElement;
-    const themeIcon = document.getElementById('theme-icon');
-    const themeIconMobile = document.getElementById('theme-icon-mobile');
-    const themeToggle = document.getElementById('theme-toggle');
-    const themeToggleMobile = document.getElementById('theme-toggle-mobile');
-
-    function applyTheme(theme) {
-        if (theme === 'light') {
-            html.classList.remove('dark');
-            if (themeIcon) { themeIcon.classList.remove('fa-moon'); themeIcon.classList.add('fa-sun'); }
-            if (themeIconMobile) { themeIconMobile.classList.remove('fa-moon'); themeIconMobile.classList.add('fa-sun'); }
-        } else {
-            html.classList.add('dark');
-            if (themeIcon) { themeIcon.classList.remove('fa-sun'); themeIcon.classList.add('fa-moon'); }
-            if (themeIconMobile) { themeIconMobile.classList.remove('fa-sun'); themeIconMobile.classList.add('fa-moon'); }
-        }
-    }
-
-    // Read saved theme (default dark)
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    applyTheme(savedTheme);
-
-    function toggleTheme() {
-        const newTheme = html.classList.contains('dark') ? 'light' : 'dark';
-        localStorage.setItem('theme', newTheme);
-        applyTheme(newTheme);
-    }
-
-    themeToggle?.addEventListener('click', toggleTheme);
-    themeToggleMobile?.addEventListener('click', toggleTheme);
-
-    // ===== Navbar Scroll =====
-    const navbar = document.getElementById('navbar');
-    const handleScroll = () => {
-        if (window.scrollY > 50) {
-            navbar?.classList.add('navbar-scrolled');
-        } else {
-            navbar?.classList.remove('navbar-scrolled');
-        }
-    };
-    window.addEventListener('scroll', handleScroll);
-    handleScroll();
 
     // ===== Hide cursor when leaving window =====
     document.addEventListener('mouseleave', () => {

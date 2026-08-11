@@ -1,6 +1,11 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Dark mode berbasis class (bukan prefers-color-scheme) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
 
 /* ============================================
    SIDOCMA Welcome - Dark Theme + Custom Cursor
@@ -85,6 +90,11 @@ html:not(.dark) .placeholder-slate-500::placeholder {
 
 html:not(.dark) .bg-slate-900\/40 {
     background-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+html:not(.dark) .bg-slate-900\/70 {
+    background-color: rgba(255, 255, 255, 0.85) !important;
+    box-shadow: 0 20px 60px -15px rgba(13, 148, 136, 0.15) !important;
 }
 
 html:not(.dark) .ring-teal-500\/20 {

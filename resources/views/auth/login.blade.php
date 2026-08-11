@@ -27,92 +27,40 @@
     </div>
     <div class="bg-grid"></div>
 
-    <!-- ===== LOGIN CONTAINER ===== -->
-    <div class="relative min-h-screen flex items-center justify-center px-4 py-8">
+    <!-- ===== LOGIN PAGE ===== -->
+    <div class="relative min-h-screen flex flex-col items-center justify-center px-4 py-10">
 
-        <!-- Back to Home -->
-        <a href="{{ url('/') }}" class="fixed top-6 left-6 z-50 flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-800/50 backdrop-blur border border-slate-700 text-slate-300 hover:text-teal-400 hover:border-teal-400 transition cursor-hover magnetic-btn group">
-            <i class="fas fa-arrow-left group-hover:-translate-x-1 transition-transform"></i>
-            <span class="text-sm font-medium">Beranda</span>
-        </a>
+        <!-- Top Bar -->
+        <div class="w-full max-w-md flex items-center justify-between mb-6">
+            <a href="{{ url('/') }}" class="flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-800/50 backdrop-blur border border-slate-700 text-slate-300 hover:text-teal-400 hover:border-teal-400 transition cursor-hover">
+                <i class="fas fa-arrow-left"></i>
+                <span class="text-sm font-medium">Beranda</span>
+            </a>
+            <button id="theme-toggle" class="cursor-hover w-10 h-10 rounded-xl bg-slate-800/50 backdrop-blur border border-slate-700 flex items-center justify-center text-slate-300 hover:text-teal-400 hover:border-teal-400 transition" title="Toggle Theme">
+                <i id="theme-icon" class="fas fa-sun"></i>
+            </button>
+        </div>
 
-        <!-- Theme Toggle -->
-        <button id="theme-toggle" class="fixed top-6 right-6 z-50 cursor-hover w-10 h-10 rounded-xl bg-slate-800/50 backdrop-blur border border-slate-700 flex items-center justify-center text-slate-300 hover:text-teal-400 hover:border-teal-400 transition" title="Toggle Theme">
-            <i id="theme-icon" class="fas fa-sun"></i>
-        </button>
+        <!-- Login Card -->
+        <div class="w-full max-w-md bg-slate-900/70 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden reveal-up">
 
-        <div class="grid lg:grid-cols-2 max-w-6xl w-full bg-slate-900/60 backdrop-blur-xl rounded-3xl overflow-hidden border border-slate-700/50 shadow-2xl">
-
-            <!-- Left Side: Branding -->
-            <div class="relative hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-teal-600 via-teal-700 to-cyan-800 overflow-hidden">
-                <!-- Decorative orbs -->
-                <div class="absolute top-0 right-0 w-64 h-64 bg-teal-400 rounded-full mix-blend-overlay filter blur-3xl opacity-30"></div>
-                <div class="absolute bottom-0 left-0 w-64 h-64 bg-cyan-400 rounded-full mix-blend-overlay filter blur-3xl opacity-30"></div>
-
-                <div class="relative z-10">
-                    <a href="{{ url('/') }}" class="inline-flex items-center space-x-3 group">
-                        <div class="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <span class="text-white font-bold text-2xl">S</span>
-                        </div>
-                        <span class="text-2xl font-bold text-white tracking-wide">SIDOCMA</span>
-                    </a>
-                </div>
-
-                <div class="relative z-10 reveal-up">
-                    <h2 class="text-4xl xl:text-5xl font-extrabold text-white leading-tight mb-6">
-                        Selamat Datang<br>Kembali
-                    </h2>
-                    <p class="text-teal-100 text-lg leading-relaxed mb-8">
-                        Masuk untuk mengelola dokumen dan surat menyurat rumah sakit dalam satu platform terpadu.
-                    </p>
-
-                    <div class="space-y-4">
-                        <div class="flex items-center space-x-3 text-white/90">
-                            <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                                <i class="fas fa-folder-tree text-white"></i>
-                            </div>
-                            <span>Manajemen dokumen terstruktur</span>
-                        </div>
-                        <div class="flex items-center space-x-3 text-white/90">
-                            <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                                <i class="fas fa-share-nodes text-white"></i>
-                            </div>
-                            <span>Disposisi multi-unit otomatis</span>
-                        </div>
-                        <div class="flex items-center space-x-3 text-white/90">
-                            <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                                <i class="fas fa-shield-halved text-white"></i>
-                            </div>
-                            <span>Akses aman & terenkripsi</span>
-                        </div>
+            <!-- Brand Header -->
+            <div class="p-8 pb-6 bg-gradient-to-br from-teal-600 via-teal-700 to-cyan-800">
+                <a href="{{ url('/') }}" class="inline-flex items-center space-x-3 group">
+                    <div class="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <span class="text-white font-bold text-2xl">S</span>
                     </div>
-                </div>
-
-                <div class="relative z-10 text-xs text-teal-200/70">
-                    &copy; {{ date('Y') }} SIDOCMA. Sistem Internal Rumah Sakit.
-                </div>
+                    <span class="text-2xl font-bold text-white tracking-wide">SIDOCMA</span>
+                </a>
+                <h3 class="text-xl font-bold text-white mt-6">Masuk ke Akun Anda</h3>
+                <p class="text-teal-100 text-sm mt-1">Sistem Informasi Dokumen & Surat Menyurat</p>
             </div>
 
-            <!-- Right Side: Form -->
-            <div class="p-8 md:p-12 lg:p-16">
-
-                <!-- Mobile Logo -->
-                <div class="lg:hidden text-center mb-8">
-                    <a href="{{ url('/') }}" class="inline-flex items-center space-x-3">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center">
-                            <span class="text-white font-bold text-2xl">S</span>
-                        </div>
-                        <span class="text-2xl font-bold text-white">SIDOCMA</span>
-                    </a>
-                </div>
-
-                <div class="mb-8 reveal-up">
-                    <h3 class="text-3xl font-bold text-white mb-2">Masuk ke Akun Anda</h3>
-                    <p class="text-slate-400">Gunakan akun yang diberikan oleh administrator rumah sakit.</p>
-                </div>
+            <!-- Form Body -->
+            <div class="p-8">
 
                 @if (session('status'))
-                <div class="mb-6 p-4 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-300 text-sm reveal-up">
+                <div class="mb-6 p-4 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-300 text-sm">
                     {{ session('status') }}
                 </div>
                 @endif
@@ -121,7 +69,7 @@
                     @csrf
 
                     <!-- Login -->
-                    <div class="reveal-up" style="transition-delay: 0.1s">
+                    <div>
                         <label for="login" class="block text-sm font-medium text-slate-300 mb-2">Username / Email</label>
                         <div class="relative group">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center justify-center pointer-events-none">
@@ -141,7 +89,7 @@
                     </div>
 
                     <!-- Password -->
-                    <div class="reveal-up" style="transition-delay: 0.2s">
+                    <div>
                         <div class="flex items-center justify-between mb-2">
                             <label for="password" class="block text-sm font-medium text-slate-300">Password</label>
                             @if (Route::has('password.request'))
@@ -171,7 +119,7 @@
                     </div>
 
                     <!-- Remember Me -->
-                    <div class="flex items-center reveal-up" style="transition-delay: 0.3s">
+                    <div class="flex items-center">
                         <label for="remember_me" class="inline-flex items-center cursor-pointer group cursor-hover">
                             <div class="relative">
                                 <input id="remember_me" type="checkbox" name="remember"
@@ -185,8 +133,8 @@
                     </div>
 
                     <!-- Submit -->
-                    <div class="pt-4 reveal-up" style="transition-delay: 0.4s">
-                        <button type="submit" id="submitBtn" class="magnetic-btn group relative w-full px-8 py-4 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-2xl text-base font-semibold overflow-hidden shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 transition cursor-hover">
+                    <div class="pt-4">
+                        <button type="submit" id="submitBtn" class="group relative w-full px-8 py-4 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-2xl text-base font-semibold overflow-hidden shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 transition cursor-hover">
                             <span class="relative z-10 flex items-center justify-center space-x-2">
                                 <span id="submitText">Masuk Sekarang</span>
                                 <i id="submitIcon" class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
@@ -198,7 +146,7 @@
                 </form>
 
                 <!-- Footer info -->
-                <div class="mt-8 pt-6 border-t border-slate-800 text-center reveal-up" style="transition-delay: 0.5s">
+                <div class="mt-8 pt-6 border-t border-slate-800 text-center">
                     <p class="text-xs text-slate-500">
                         Akun Anda dibuat dan dikelola oleh <span class="text-teal-400 font-medium">Super Admin</span>.<br>
                         Hubungi administrator jika belum memiliki akses.
@@ -206,6 +154,11 @@
                 </div>
             </div>
         </div>
+
+        <!-- Footer copyright -->
+        <p class="mt-8 text-xs text-slate-600 text-center">
+            &copy; {{ date('Y') }} SIDOCMA. Sistem Internal Rumah Sakit.
+        </p>
     </div>
 
     <script>
