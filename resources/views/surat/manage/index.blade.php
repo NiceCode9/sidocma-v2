@@ -1,6 +1,9 @@
 @extends('layouts.app', ['title' => 'Management Surat'])
 
 @section('content')
+    @php
+        $isDirektur = auth()->user()->hasRole('direktur') && !auth()->user()->hasRole('super admin');
+    @endphp
     <section class="section">
         <div class="section-header">
             <h1>Management Surat</h1>
@@ -141,7 +144,7 @@
                                                 <div class="card-body">
                                                     <div class="d-flex justify-content-between">
                                                         <div>
-                                                            <h6 class="text-muted">Total Surat Keluar</h6>
+                                                            <h6 class="text-muted">{{ $isDirektur ? 'Total Disposisi Dikirim' : 'Total Surat Keluar' }}</h6>
                                                             <h4 class="mb-0" id="totalSuratKeluar">-</h4>
                                                         </div>
                                                         <div class="align-self-center">
@@ -156,7 +159,7 @@
                                                 <div class="card-body">
                                                     <div class="d-flex justify-content-between">
                                                         <div>
-                                                            <h6 class="text-muted">Belum Dibaca</h6>
+                                                            <h6 class="text-muted">{{ $isDirektur ? 'Diproses' : 'Belum Dibaca' }}</h6>
                                                             <h4 class="mb-0" id="belumDibaca">-</h4>
                                                         </div>
                                                         <div class="align-self-center">
@@ -171,7 +174,7 @@
                                                 <div class="card-body">
                                                     <div class="d-flex justify-content-between">
                                                         <div>
-                                                            <h6 class="text-muted">Sudah Dibaca</h6>
+                                                            <h6 class="text-muted">{{ $isDirektur ? 'Selesai' : 'Sudah Dibaca' }}</h6>
                                                             <h4 class="mb-0" id="sudahDibaca">-</h4>
                                                         </div>
                                                         <div class="align-self-center">
@@ -186,7 +189,7 @@
                                                 <div class="card-body">
                                                     <div class="d-flex justify-content-between">
                                                         <div>
-                                                            <h6 class="text-muted">Hari Ini</h6>
+                                                            <h6 class="text-muted">{{ $isDirektur ? 'Dikirim Hari Ini' : 'Hari Ini' }}</h6>
                                                             <h4 class="mb-0" id="hariIni">-</h4>
                                                         </div>
                                                         <div class="align-self-center">
@@ -202,17 +205,30 @@
                                         <table class="table table-striped table-hover" id="suratKeluarTable"
                                             style="width: 100%;">
                                             <thead>
-                                                <tr>
-                                                    <th width="5%">No</th>
-                                                    <th>Judul</th>
-                                                    <th>Unit Tertuju</th>
-                                                    <th>Kategori</th>
-                                                    <th>Tanggal Dibuat</th>
-                                                    <th>Status Dibaca</th>
-                                                    <th>Waktu Dibaca</th>
-                                                    <th>Dibaca Oleh</th>
-                                                    <th>Jumlah Download</th>
-                                                </tr>
+                                                @if ($isDirektur)
+                                                    <tr>
+                                                        <th width="5%">No</th>
+                                                        <th>No. Agenda</th>
+                                                        <th>Asal Naskah / Perihal</th>
+                                                        <th>Unit Tujuan</th>
+                                                        <th>Sifat</th>
+                                                        <th>Status</th>
+                                                        <th>Tanggal</th>
+                                                        <th width="15%">Aksi</th>
+                                                    </tr>
+                                                @else
+                                                    <tr>
+                                                        <th width="5%">No</th>
+                                                        <th>Judul</th>
+                                                        <th>Unit Tertuju</th>
+                                                        <th>Kategori</th>
+                                                        <th>Tanggal Dibuat</th>
+                                                        <th>Status Dibaca</th>
+                                                        <th>Waktu Dibaca</th>
+                                                        <th>Dibaca Oleh</th>
+                                                        <th>Jumlah Download</th>
+                                                    </tr>
+                                                @endif
                                             </thead>
                                         </table>
                                     </div>
@@ -329,6 +345,48 @@
             });
 
             // Initialize Surat Keluar DataTable
+            const isDirekturSuratKeluar = {{ $isDirektur ? 'true' : 'false' }};
+            const suratKeluarColumns = isDirekturSuratKeluar ? [
+                { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
+                { data: 'no_agenda', name: 'no_agenda' },
+                { data: 'asal', name: 'asal' },
+                { data: 'target_units', name: 'target_units' },
+                { data: 'sifat_badge', name: 'sifat' },
+                { data: 'status_badge', name: 'status' },
+                { data: 'tanggal', name: 'created_at' },
+                { data: 'action', name: 'action', orderable: false, searchable: false },
+            ] : [
+                { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
+                { data: 'title', name: 'title' },
+                { data: 'folder.name', name: 'folder.name' },
+                {
+                    data: 'category_name',
+                    name: 'category_name'
+                },
+                {
+                    data: 'tanggal_dibuat',
+                    name: 'tanggal_dibuat'
+                },
+                {
+                    data: 'is_read',
+                    name: 'is_read',
+                },
+                {
+                    data: 'read_at',
+                    name: 'read_at'
+                },
+                {
+                    data: 'opened_by',
+                    name: 'opened_by'
+                },
+                {
+                    data: 'jumlah_download',
+                    name: 'jumlah_download',
+                    orderable: false,
+                    searchable: false
+                }
+            ];
+
             window.tableSk = $('#suratKeluarTable').DataTable({
                 processing: true,
                 serverSide: true,
@@ -336,52 +394,10 @@
                     url: "{{ route('management-surat.surat-keluar.data') }}",
                     type: "GET"
                 },
-                columns: [{
-                        data: 'DT_RowIndex',
-                        name: 'DT_RowIndex',
-                        orderable: false,
-                        searchable: false
-                    },
-                    {
-                        data: 'title',
-                        name: 'title'
-                    },
-                    {
-                        data: 'folder.name',
-                        name: 'folder.name'
-                    },
-                    // {
-                    //     data: 'creator_name',
-                    //     name: 'creator_name'
-                    // },
-                    {
-                        data: 'category_name',
-                        name: 'category_name'
-                    },
-                    {
-                        data: 'tanggal_dibuat',
-                        name: 'tanggal_dibuat'
-                    },
-                    {
-                        data: 'is_read',
-                        name: 'is_read',
-                    },
-                    {
-                        data: 'read_at',
-                        name: 'read_at'
-                    },
-                    {
-                        data: 'opened_by',
-                        name: 'opened_by'
-                    },
-                    {
-                        data: 'jumlah_download',
-                        name: 'jumlah_download',
-                        orderable: false,
-                        searchable: false
-                    }
-                ],
-                order: [
+                columns: suratKeluarColumns,
+                order: isDirekturSuratKeluar ? [
+                    [6, 'desc']
+                ] : [
                     [5, 'desc']
                 ],
             });

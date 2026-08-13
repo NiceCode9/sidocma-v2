@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\SuratCreate;
+use App\Models\Disposisi;
 use App\Models\Document;
 use App\Models\DocumentPermission;
 use App\Models\Surat;
@@ -71,8 +72,11 @@ class ManagementSuratController extends Controller
                 return $item->surat_id ? 'surat_' . $item->surat_id : 'doc_' . $item->document_id;
             });
 
-            // Direktur: gabungan Surat + Document (is_letter)
-            $suratList = Surat::with('user.unit')->get()->map(function ($item) use ($disposisiStatuses) {
+            // Direktur: gabungan Surat + Document (is_letter) yang butuh disposisi
+            $suratList = Surat::with('user.unit')
+                ->where('needs_disposisi', true)
+                ->get()
+                ->map(function ($item) use ($disposisiStatuses) {
                 $key = 'surat_' . $item->id;
                 $disposisi = $disposisiStatuses->get($key);
                 return [
@@ -187,11 +191,11 @@ class ManagementSuratController extends Controller
             ]);
         }
 
-        // Direktur: gabungan
-        $suratTotal = Surat::count();
-        $suratDibaca = Surat::whereNotNull('read_at')->count();
-        $suratBelum = Surat::whereNull('read_at')->count();
-        $suratHariIni = Surat::whereDate('created_at', today())->count();
+        // Direktur: gabungan (hanya yang butuh disposisi)
+        $suratTotal = Surat::where('needs_disposisi', true)->count();
+        $suratDibaca = Surat::where('needs_disposisi', true)->whereNotNull('read_at')->count();
+        $suratBelum = Surat::where('needs_disposisi', true)->whereNull('read_at')->count();
+        $suratHariIni = Surat::where('needs_disposisi', true)->whereDate('created_at', today())->count();
 
         $docTotal = Document::where('is_letter', true)->where('needs_disposisi', true)->where('is_active', true)->count();
         $docDibaca = Document::where('is_letter', true)->where('needs_disposisi', true)->where('is_active', true)
@@ -220,17 +224,69 @@ class ManagementSuratController extends Controller
         if ($request->ajax()) {
             $user = Auth::user();
 
+            // Direktur (bukan super admin): data disposisi yang dikirim oleh direktur
+            if ($user->hasRole('direktur') && !$user->hasRole('super admin')) {
+                $data = Disposisi::with(['creator', 'surat', 'document', 'targets.unit'])
+                    ->where('created_by', $user->id)
+                    ->select('*');
+
+                return DataTables::of($data)
+                    ->addIndexColumn()
+                    ->addColumn('no_agenda', function ($row) {
+                        return $row->no_agenda;
+                    })
+                    ->addColumn('asal', function ($row) {
+                        if ($row->surat) {
+                            return $row->surat->perihal;
+                        }
+                        if ($row->document) {
+                            return $row->document->title;
+                        }
+                        return $row->asal_naskah ?? '-';
+                    })
+                    ->addColumn('target_units', function ($row) {
+                        return $row->targets->map(function ($t) {
+                            return $t->unit->name;
+                        })->implode(', ');
+                    })
+                    ->addColumn('sifat_badge', function ($row) {
+                        $labels = [
+                            'sangat_segera' => 'Sangat Segera',
+                            'segera' => 'Segera',
+                            'rahasia' => 'Rahasia',
+                            'biasa' => 'Biasa',
+                        ];
+                        $classes = [
+                            'sangat_segera' => 'badge-danger',
+                            'segera' => 'badge-warning',
+                            'rahasia' => 'badge-dark',
+                            'biasa' => 'badge-info',
+                        ];
+                        $label = $labels[$row->sifat] ?? $row->sifat;
+                        $class = $classes[$row->sifat] ?? 'badge-secondary';
+                        return '<span class="badge ' . $class . '">' . $label . '</span>';
+                    })
+                    ->addColumn('status_badge', function ($row) {
+                        return '<span class="badge ' . $row->status->badgeClass() . '">' . $row->status->label() . '</span>';
+                    })
+                    ->addColumn('tanggal', function ($row) {
+                        return $row->created_at->format('d-m-Y H:i:s');
+                    })
+                    ->addColumn('action', function ($row) {
+                        $btn = '<div class="btn-group" role="group">';
+                        $btn .= '<a href="' . route('disposisi.show', $row->id) . '" class="btn btn-info btn-sm" title="Lihat"><i class="fas fa-eye"></i></a>';
+                        $btn .= '<a href="' . route('disposisi.cetak', $row->id) . '" class="btn btn-secondary btn-sm" target="_blank" title="Cetak"><i class="fas fa-print"></i></a>';
+                        $btn .= '</div>';
+                        return $btn;
+                    })
+                    ->rawColumns(['sifat_badge', 'status_badge', 'action'])
+                    ->make(true);
+            }
+
             $query = Document::with(['creator', 'category', 'folder' => function ($query) {
                 $query->select('id', 'name');
             }])
                 ->where('is_letter', true);
-
-            // Direktur (bukan super admin): hanya surat yang sudah didisposisi olehnya
-            if ($user->hasRole('direktur') && !$user->hasRole('super admin')) {
-                $query->whereHas('disposisis', function ($q) use ($user) {
-                    $q->where('created_by', $user->id);
-                });
-            }
 
             $data = $query->select('*')->orderBy('created_at', 'desc');
 
@@ -325,12 +381,19 @@ class ManagementSuratController extends Controller
         if ($request->ajax()) {
             $user = Auth::user();
 
-            $baseQuery = Document::where('is_letter', true);
-
-            // Direktur (bukan super admin): hanya surat yang sudah didisposisi olehnya
+            // Direktur (bukan super admin): stats disposisi yang dikirim oleh direktur
             if ($user->hasRole('direktur') && !$user->hasRole('super admin')) {
-                $baseQuery->whereHas('disposisis', fn($q) => $q->where('created_by', $user->id));
+                $baseQuery = Disposisi::where('created_by', $user->id);
+
+                return response()->json([
+                    'total' => (clone $baseQuery)->count(),
+                    'dibaca' => (clone $baseQuery)->where('status', \App\Enums\DisposisiStatus::Selesai)->count(),
+                    'belum_dibaca' => (clone $baseQuery)->where('status', \App\Enums\DisposisiStatus::Diproses)->count(),
+                    'hari_ini' => (clone $baseQuery)->whereDate('created_at', today())->count(),
+                ]);
             }
+
+            $baseQuery = Document::where('is_letter', true);
 
             $total = (clone $baseQuery)->count();
 
