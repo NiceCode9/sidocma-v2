@@ -179,7 +179,7 @@
                         </div>
 
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <div class="form-group">
                                     <label for="is_active">Status</label>
                                     <div class="form-check">
@@ -187,6 +187,18 @@
                                             value="1" checked>
                                         <label class="form-check-label" for="is_active">
                                             Aktif
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="is_legal">Legal</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="is_legal" id="is_legal"
+                                            value="1">
+                                        <label class="form-check-label" for="is_legal">
+                                            Legal
                                         </label>
                                     </div>
                                 </div>
@@ -256,6 +268,7 @@
                         $('#email').val(user.email);
                         $('#unit_id').val(user.unit_id);
                         $('#is_active').prop('checked', user.is_active);
+                        $('#is_legal').prop('checked', user.is_legal);
 
                         // Set roles
                         const roleNames = user.roles.map(role => role.name);

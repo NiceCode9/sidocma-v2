@@ -428,7 +428,16 @@ class ManagementSuratController extends Controller
 
     public function kirimSurat()
     {
-        return view('surat.staff.index');
+        // Penerima: user ber-role super admin ATAU user is_legal = true (non super admin)
+        $recipients = User::where(function ($q) {
+            $q->role('super admin')
+                ->orWhere('is_legal', true);
+        })
+            ->with('unit')
+            ->orderBy('name')
+            ->get();
+
+        return view('surat.staff.index', compact('recipients'));
     }
 
     public function getData(Request $request)
@@ -503,6 +512,8 @@ class ManagementSuratController extends Controller
             'disposisi_tgl_no_naskah' => 'nullable|string|max:255',
             'disposisi_asal_naskah' => 'nullable|string|max:255',
             'disposisi_informasi_naskah' => 'nullable|string',
+            'recipient_ids' => 'required|array|min:1',
+            'recipient_ids.*' => 'exists:users,id',
         ]);
 
         $data = [
@@ -530,16 +541,19 @@ class ManagementSuratController extends Controller
         // Buat surat baru
         $surat = Surat::create($data);
 
-        // Ambil semua user dengan role super admin dan direktur
-        $superAdmins = User::role('super admin')->get();
-        $direktur = User::role('direktur')->get();
-        $allRecipients = $superAdmins->merge($direktur)->unique('id');
+        // Kirim ke user terpilih (super admin ATAU is_legal = true)
+        $recipients = User::where(function ($q) {
+            $q->role('super admin')
+                ->orWhere('is_legal', true);
+        })
+            ->whereIn('id', $request->recipient_ids)
+            ->get();
 
         // Broadcast event dengan data surat dan users
-        broadcast(new SuratCreate($surat, $allRecipients));
+        broadcast(new SuratCreate($surat, $recipients));
 
-        if ($allRecipients->isNotEmpty()) {
-            Notification::send($allRecipients, new SuratNotification($surat, 'surat_masuk', Auth::user()));
+        if ($recipients->isNotEmpty()) {
+            Notification::send($recipients, new SuratNotification($surat, 'surat_masuk', Auth::user()));
         }
 
         return response()->json([

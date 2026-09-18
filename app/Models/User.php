@@ -22,6 +22,7 @@ class User extends Authenticatable
         'password',
         'unit_id',
         'is_active',
+        'is_legal',
     ];
 
     protected $hidden = [
@@ -32,6 +33,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'is_active' => 'boolean',
+        'is_legal' => 'boolean',
         'password' => 'hashed',
     ];
 

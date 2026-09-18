@@ -71,7 +71,8 @@ class UserController extends Controller
             'unit_id' => 'required|exists:units,id',
             'roles' => 'required|array',
             'roles.*' => 'exists:roles,name',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'is_legal' => 'boolean'
         ]);
 
         if ($validator->fails()) {
@@ -98,7 +99,8 @@ class UserController extends Controller
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'unit_id' => $request->unit_id,
-                'is_active' => $request->is_active ?? true,
+                'is_active' => $request->boolean('is_active'),
+                'is_legal' => $request->boolean('is_legal'),
             ]);
 
             // Assign roles
@@ -146,7 +148,8 @@ class UserController extends Controller
             'unit_id' => 'required|exists:units,id',
             'roles' => 'required|array',
             'roles.*' => 'exists:roles,name',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'is_legal' => 'boolean'
         ]);
 
         if ($validator->fails()) {
@@ -178,7 +181,8 @@ class UserController extends Controller
                 'kode_user' => $kodeUser,
                 'email' => $request->email,
                 'unit_id' => $request->unit_id,
-                'is_active' => $request->is_active ?? true,
+                'is_active' => $request->boolean('is_active'),
+                'is_legal' => $request->boolean('is_legal'),
             ];
 
             // Only update password if provided

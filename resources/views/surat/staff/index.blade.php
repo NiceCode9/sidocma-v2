@@ -89,10 +89,26 @@
                             <div id="currentFile" class="mt-2"></div>
                         </div>
 
+                        <div class="form-group">
+                            <label>Dikirim Ke <span class="text-danger">*</span></label>
+                            @if ($recipients->isEmpty())
+                                <div class="alert alert-warning py-2">Belum ada user super admin atau user legal.</div>
+                            @endif
+                            <select class="form-control select2" name="recipient_ids[]" id="recipient_ids" multiple
+                                required>
+                                @foreach ($recipients as $recipient)
+                                    <option value="{{ $recipient->id }}">{{ $recipient->name }}
+                                        ({{ $recipient->unit?->name ?? 'Tanpa Unit' }})</option>
+                                @endforeach
+                            </select>
+                            <small class="text-muted">Pilih penerima surat. Penerima: user super admin atau user berstatus legal.</small>
+                            <div class="invalid-feedback"></div>
+                        </div>
+
                         <hr class="my-3">
 
                         <!-- Butuh Disposisi -->
-                        <div class="form-group">
+                        {{-- <div class="form-group">
                             <label>Butuh Disposisi?</label>
                             <div class="custom-control custom-switch">
                                 <input type="checkbox" class="custom-control-input" id="needs_disposisi"
@@ -100,7 +116,7 @@
                                 <label class="custom-control-label" for="needs_disposisi">Ya, surat ini butuh disposisi</label>
                             </div>
                             <small class="text-muted">Centang untuk mengisi data disposisi yang akan dilihat Direktur</small>
-                        </div>
+                        </div> --}}
 
                         <!-- Disposisi Fields -->
                         <div id="kirimDisposisiFields" style="display: none;">
@@ -221,6 +237,13 @@
 @push('scripts')
     <script>
         $(document).ready(function() {
+            // Initialize Select2
+            $('#recipient_ids').select2({
+                dropdownParent: $('#kirimSuratModal'),
+                width: '100%',
+                placeholder: 'Pilih penerima surat'
+            });
+
             // Initialize DataTable
             window.tableSuratUnit = $('#suratTable').DataTable({
                 processing: true,
@@ -451,6 +474,7 @@
             $('.invalid-feedback').text('');
             $('#needs_disposisi').prop('checked', false);
             $('#kirimDisposisiFields').hide();
+            $('#recipient_ids').val(null).trigger('change');
         }
     </script>
 @endpush
