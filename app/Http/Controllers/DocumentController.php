@@ -34,6 +34,8 @@ class DocumentController extends Controller
 
     public function store(Request $request)
     {
+        $maxSizeMb = config('documents.max_upload_size_mb');
+
         $request->validate([
             'folder_id' => 'required|exists:folders,id',
             'description' => 'nullable|string',
@@ -41,7 +43,7 @@ class DocumentController extends Controller
             'is_latter' => 'nullable|boolean',
             'category' => 'nullable|exists:document_categories,id',
             'files' => 'required|array',
-            'files.*' => 'required|file|mimes:pdf,docx,doc,xlsx,xls,ppt,pptx,zip|max:20480',
+            'files.*' => ['required', 'file', 'mimes:pdf,docx,doc,xlsx,xls,ppt,pptx,zip', 'max:' . ($maxSizeMb * 1024)],
             'is_letter' => 'boolean',
             'needs_disposisi' => 'nullable|boolean',
             'disposisi_no_agenda' => 'nullable|string|max:255',
@@ -50,6 +52,9 @@ class DocumentController extends Controller
             'disposisi_tgl_no_naskah' => 'nullable|string|max:255',
             'disposisi_asal_naskah' => 'nullable|string|max:255',
             'disposisi_informasi_naskah' => 'nullable|string',
+        ], [
+            'files.*.max' => 'File :input melebihi batas maksimal ' . $maxSizeMb . 'MB.',
+            'files.*.mimes' => 'File :input harus berformat: pdf, docx, doc, xlsx, xls, ppt, pptx, atau zip.',
         ]);
 
         $folder = Folder::find($request->folder_id);

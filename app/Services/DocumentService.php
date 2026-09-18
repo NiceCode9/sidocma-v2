@@ -28,6 +28,8 @@ class DocumentService
         ?string $disposisi_asal_naskah = null,
         ?string $disposisi_informasi_naskah = null,
     ): Document {
+        $this->assertFileSizeAllowed($file);
+
         $fileName = $this->generateUniqueName($file);
         $filePath = $file->storeAs('documents', $fileName, 'public');
 
@@ -66,6 +68,25 @@ class DocumentService
         $timestamp = now()->format('Y-m-d_H-i-s');
         $random = Str::random(8);
         return "{$timestamp}_{$random}.{$extension}";
+    }
+
+    public static function maxUploadSizeBytes(): int
+    {
+        return (int) config('documents.max_upload_size_bytes', 60 * 1024 * 1024);
+    }
+
+    public static function maxUploadSizeMb(): int
+    {
+        return (int) config('documents.max_upload_size_mb', 60);
+    }
+
+    private function assertFileSizeAllowed(UploadedFile $file): void
+    {
+        if ($file->getSize() > static::maxUploadSizeBytes()) {
+            throw new \DomainException(
+                sprintf('File %s melebihi batas maksimal %dMB.', $file->getClientOriginalName(), static::maxUploadSizeMb())
+            );
+        }
     }
 
     public function createDocumentShare(

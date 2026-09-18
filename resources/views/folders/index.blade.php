@@ -215,7 +215,7 @@
                                 <input type="file" class="custom-file-input" id="fileInput" multiple>
                                 <label class="custom-file-label" for="fileInput">Pilih file...</label>
                             </div>
-                            <small class="form-text text-muted">Maksimal ukuran file 10MB per file</small>
+                            <small class="form-text text-muted">Maksimal ukuran file 60MB per file</small>
                         </div>
 
                         <div class="form-group">
@@ -478,7 +478,8 @@
             $('#fileInput').on('change', function() {
                 const files = Array.from(this.files);
                 if (files.length > 0) {
-                    $('.custom-file-label').text(`${files.length} file(s) selected`);
+                    const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+                    $('.custom-file-label').text(`${files.length} file(s) selected (${formatFileSize(totalSize)})`);
                 } else {
                     $('.custom-file-label').text('Pilih file...');
                 }
@@ -1788,6 +1789,17 @@
                 return;
             }
 
+            // Validasi ukuran file client-side
+            const MAX_UPLOAD_SIZE_BYTES = {{ (int) config('documents.max_upload_size_bytes') }};
+            const oversizedFiles = Array.from(files).filter(f => f.size > MAX_UPLOAD_SIZE_BYTES);
+            if (oversizedFiles.length > 0) {
+                showAlert('warning',
+                    `File berikut melebihi batas maksimal ${formatFileSize(MAX_UPLOAD_SIZE_BYTES)}:<br>` +
+                    oversizedFiles.map(f => `<strong>${f.name}</strong> (${formatFileSize(f.size)})`).join('<br>')
+                );
+                return;
+            }
+
             const formData = new FormData();
             formData.append('folder_id', currentFolderId);
             formData.append('description', description);
@@ -1836,6 +1848,7 @@
                     data: formData,
                     processData: false,
                     contentType: false,
+                    timeout: 0,
                     xhr: function() {
                         var xhr = new window.XMLHttpRequest();
                         xhr.upload.addEventListener("progress", function(evt) {
@@ -1899,6 +1912,14 @@
                             Object.keys(xhr.responseJSON.errors).forEach(field => {
                                 const errorMessage = xhr.responseJSON.errors[field][0];
                                 const inputField = $(`#${field}`);
+
+                                // Field array seperti files.0 / files.1 tidak punya id
+                                // langsung; tampilkan sebagai alert generik.
+                                if (field.startsWith('files') && inputField.length === 0) {
+                                    showAlert('warning', errorMessage);
+                                    return;
+                                }
+
                                 inputField.addClass('is-invalid');
                                 inputField.after(
                                     `<div class="invalid-feedback">${errorMessage}</div>`);

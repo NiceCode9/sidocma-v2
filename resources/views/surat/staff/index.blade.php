@@ -84,7 +84,7 @@
                             <label>File Surat</label>
                             <input type="file" class="form-control-file" name="file" id="file"
                                 accept=".pdf,.doc,.docx">
-                            <small class="text-muted">Format: PDF, DOC, DOCX. Maksimal 5MB</small>
+                            <small class="text-muted">Format: PDF, DOC, DOCX. Maksimal 60MB</small>
                             <div class="invalid-feedback"></div>
                             <div id="currentFile" class="mt-2"></div>
                         </div>
@@ -292,6 +292,20 @@
             // Handle form submission
             $('#suratForm').on('submit', function(e) {
                 e.preventDefault();
+
+                // Validasi ukuran file client-side
+                const suratFile = $('#file')[0];
+                if (suratFile && suratFile.files.length > 0) {
+                    const MAX_UPLOAD_SIZE_BYTES = {{ (int) config('documents.max_upload_size_bytes') }};
+                    if (suratFile.files[0].size > MAX_UPLOAD_SIZE_BYTES) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'File Terlalu Besar',
+                            text: 'File melebihi batas maksimal 60MB.'
+                        });
+                        return;
+                    }
+                }
 
                 const formData = new FormData(this);
                 const isEdit = $('#surat_id').val() !== '';

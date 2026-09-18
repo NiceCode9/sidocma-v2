@@ -500,11 +500,13 @@ class ManagementSuratController extends Controller
 
     public function store(Request $request)
     {
+        $maxSizeMb = config('documents.max_upload_size_mb');
+
         $request->validate([
             'no_surat' => 'required|unique:surats',
             'perihal' => 'required',
             'keterangan' => 'nullable',
-            'file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
+            'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:' . ($maxSizeMb * 1024)],
             'needs_disposisi' => 'nullable|boolean',
             'disposisi_no_agenda' => 'nullable|string|max:255',
             'disposisi_tgl_naskah' => 'nullable|date',
@@ -514,6 +516,8 @@ class ManagementSuratController extends Controller
             'disposisi_informasi_naskah' => 'nullable|string',
             'recipient_ids' => 'required|array|min:1',
             'recipient_ids.*' => 'exists:users,id',
+        ], [
+            'file.max' => 'File :input melebihi batas maksimal ' . $maxSizeMb . 'MB.',
         ]);
 
         $data = [
@@ -577,11 +581,15 @@ class ManagementSuratController extends Controller
     {
         $surat = Surat::findOrFail($id);
 
+        $maxSizeMb = config('documents.max_upload_size_mb');
+
         $request->validate([
             'no_surat' => 'required|unique:surats,no_surat,' . $id,
             'perihal' => 'required',
             'keterangan' => 'nullable',
-            'file' => 'nullable|file|mimes:pdf,doc,docx|max:5120'
+            'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:' . ($maxSizeMb * 1024)],
+        ], [
+            'file.max' => 'File :input melebihi batas maksimal ' . $maxSizeMb . 'MB.',
         ]);
 
         $data = [
