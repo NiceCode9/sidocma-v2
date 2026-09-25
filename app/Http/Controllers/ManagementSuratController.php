@@ -142,7 +142,7 @@ class ManagementSuratController extends Controller
                     ];
                 });
 
-            $combined = $suratList->merge($docList)->sortByDesc('created_at_raw')->values();
+            $combined = $suratList->toBase()->merge($docList)->sortByDesc('created_at_raw')->values();
 
             return DataTables::of($combined)
                 ->addIndexColumn()
@@ -1060,54 +1060,109 @@ class ManagementSuratController extends Controller
             //         ->canAccessDocument($user, $document, 'read');
             // });
 
-            return DataTables::of($documents)
+            $docRows = $documents->values()->map(function ($document) {
+                return [
+                    'source_type' => 'document',
+                    'source_id' => $document->id,
+                    'document_number' => $document->document_number ?? '-',
+                    'title' => $document->title,
+                    'title_suffix' => $document->is_confidential
+                        ? ' <span class="badge badge-danger ml-1">Confidential</span>'
+                        : '',
+                    'category' => $document->category ? $document->category->name : '-',
+                    'tanggal' => $document->created_at->format('Y-m-d H:i'),
+                    'created_at_raw' => $document->created_at,
+                    'creator' => $document->creator ? $document->creator->name : '-',
+                    'is_read' => (bool) ($document->shares && $document->shares->is_read),
+                    'has_file' => !empty($document->file_path),
+                    'file_name' => $document->file_name ?? ($document->file_path ? basename($document->file_path) : '-'),
+                    'file_size' => $document->formatted_file_size ?? null,
+                ];
+            });
+
+            // Surat kiriman yang ditujukan ke user login (kotak masuk penerima)
+            $receivedSurats = Surat::with(['user', 'recipients'])
+                ->whereHas('recipients', fn($q) => $q->where('users.id', $user->id))
+                ->orderByDesc('created_at')
+                ->get();
+
+            $suratRows = $receivedSurats->map(function ($surat) use ($user) {
+                $recipient = $surat->recipients->firstWhere('id', $user->id);
+
+                return [
+                    'source_type' => 'surat',
+                    'source_id' => $surat->id,
+                    'document_number' => $surat->no_surat,
+                    'title' => $surat->perihal,
+                    'title_suffix' => '',
+                    'category' => '-',
+                    'tanggal' => $surat->created_at->format('Y-m-d H:i'),
+                    'created_at_raw' => $surat->created_at,
+                    'creator' => $surat->user ? $surat->user->name : '-',
+                    'is_read' => !is_null($recipient?->pivot?->read_at),
+                    'has_file' => !empty($surat->file),
+                    'file_name' => $surat->file ? basename($surat->file) : '-',
+                    'file_size' => null,
+                ];
+            });
+
+            $combined = $docRows->toBase()->merge($suratRows)->sortByDesc('created_at_raw')->values();
+
+            return DataTables::of($combined)
                 ->addIndexColumn()
-                ->addColumn('document_number', function ($row) {
-                    return $row->document_number ?? '-';
+                ->addColumn('tipe', function ($row) {
+                    return $row['source_type'] === 'surat'
+                        ? '<span class="badge badge-primary">Surat</span>'
+                        : '<span class="badge badge-info">Dokumen</span>';
                 })
                 ->addColumn('title', function ($row) {
-                    $confidential = $row->is_confidential
-                        ? '<span class="badge badge-danger ml-1">Confidential</span>'
-                        : '';
-                    return $row->title . $confidential;
-                })
-                ->addColumn('category', function ($row) {
-                    return $row->category ? $row->category->name : '-';
-                })
-                ->addColumn('file_info', function ($row) {
-                    return '<div class="text-sm">' .
-                        '<div>' . $row->file_name . '</div>' .
-                        '<div class="text-muted">' . $row->formatted_file_size . '</div>' .
-                        '</div>';
-                })
-                ->addColumn('creator', function ($row) {
-                    return $row->creator ? $row->creator->name : '-';
+                    return $row['title'] . ($row['title_suffix'] ?? '');
                 })
                 ->addColumn('status', function ($row) {
-                    if ($row->shares) {
-                        return $row->shares->is_read
-                            ? '<span class="badge badge-success"><i class="fas fa-check"></i> Dibaca</span>'
-                            : '<span class="badge badge-warning"><i class="fas fa-times"></i> Belum Dibaca</span>';
-                    }
-                    return '-';
+                    return $row['is_read']
+                        ? '<span class="badge badge-success"><i class="fas fa-check"></i> Dibaca</span>'
+                        : '<span class="badge badge-warning"><i class="fas fa-times"></i> Belum Dibaca</span>';
                 })
-                ->addColumn('created_at', function ($row) {
-                    return $row->created_at->format('d M Y H:i');
+                ->addColumn('file_info', function ($row) {
+                    if (!$row['has_file']) return '-';
+                    $size = $row['file_size']
+                        ? '<div class="text-muted">' . $row['file_size'] . '</div>'
+                        : '';
+                    return '<div class="text-sm">' .
+                        '<div>' . e($row['file_name']) . '</div>' .
+                        $size .
+                        '</div>';
                 })
                 ->addColumn('action', function ($row) {
                     $btn = '<div class="btn-group" role="group">';
-                    $btn .= '<a href="' . route('documents.view-file', $row->id) . '"
-                     class="btn btn-info btn-sm" title="View" target="_blank">
-                     <i class="fas fa-eye"></i>
-                     </a>';
-                    $btn .= '<a href="' . route('documents.download', $row->id) . '"
-                     class="btn btn-success btn-sm" title="Download">
-                     <i class="fas fa-download"></i>
-                     </a>';
+                    if ($row['source_type'] === 'surat') {
+                        $btn .= '<a href="' . route('surat.view', $row['source_id']) . '"
+                         class="btn btn-info btn-sm" title="Lihat Surat">
+                         <i class="fas fa-eye"></i>
+                         </a>';
+                        if ($row['has_file']) {
+                            $btn .= '<a href="' . route('kirim-surat.download', $row['source_id']) . '"
+                             class="btn btn-success btn-sm" title="Download">
+                             <i class="fas fa-download"></i>
+                             </a>';
+                        }
+                        $btn .= '<button type="button" class="btn btn-warning btn-sm" onclick="forwardSurat(' . $row['source_id'] . ')" title="Teruskan ke Super Admin">
+                         <i class="fas fa-share"></i>
+                         </button>';
+                    } else {
+                        $btn .= '<a href="' . route('documents.view-file', $row['source_id']) . '"
+                         class="btn btn-info btn-sm" title="View" target="_blank">
+                         <i class="fas fa-eye"></i>
+                         </a>';
+                        $btn .= '<a href="' . route('documents.download', $row['source_id']) . '"
+                         class="btn btn-success btn-sm" title="Download">
+                         <i class="fas fa-download"></i>
+                         </a>';
+                    }
                     $btn .= '</div>';
                     return $btn;
                 })
-                ->rawColumns(['title', 'status', 'file_info', 'action'])
+                ->rawColumns(['tipe', 'title', 'status', 'file_info', 'action'])
                 ->make(true);
         }
 

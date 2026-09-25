@@ -23,6 +23,7 @@
                                     <thead>
                                         <tr>
                                             <th>No</th>
+                                            <th>Tipe</th>
                                             <th>Nomor Surat</th>
                                             <th>Judul</th>
                                             <th>Kategori Surat</th>
@@ -90,6 +91,12 @@
                         searchable: false
                     },
                     {
+                        data: 'tipe',
+                        name: 'tipe',
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
                         data: 'document_number',
                         name: 'document_number'
                     },
@@ -102,8 +109,8 @@
                         name: 'category'
                     },
                     {
-                        data: 'created_at',
-                        name: 'created_at'
+                        data: 'tanggal',
+                        name: 'tanggal'
                     },
                     {
                         data: 'creator',
@@ -129,9 +136,51 @@
                     },
                 ],
                 order: [
-                    [4, 'desc']
+                    [5, 'desc']
                 ],
             });
+
+            window.forwardSurat = function(id) {
+                Swal.fire({
+                    title: 'Teruskan ke Super Admin?',
+                    text: 'Super Admin akan dapat membuka dan mengunduh surat ini.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Ya, Teruskan',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
+                    if (!result.isConfirmed) {
+                        return;
+                    }
+
+                    $.ajax({
+                        url: "{{ route('kirim-surat.forward', ':id') }}".replace(':id', id),
+                        method: 'POST',
+                        data: {
+                            _token: "{{ csrf_token() }}"
+                        },
+                        success: function(response) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil!',
+                                text: response.message,
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        },
+                        error: function(xhr) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: (xhr.responseJSON && xhr.responseJSON.message) ||
+                                    'Terjadi kesalahan saat meneruskan surat'
+                            });
+                        }
+                    });
+                });
+            };
         });
     </script>
 @endpush
