@@ -282,6 +282,9 @@
                         searchable: false
                     }
                 ],
+                order: [
+                    [3, 'desc']
+                ],
             });
 
             // Reset form when modal is closed

@@ -64,6 +64,9 @@ class ManagementSuratController extends Controller
                             </div>';
                         return $actionBtn;
                     })
+                    ->addColumn('tanggal_dibuat', function($row){
+                        return Carbon::parse($row->created_at)->format('d-m-Y H:i:s');
+                    })
                     ->addColumn('disposisi_badge', fn($row) => '<span class="badge badge-secondary">-</span>')
                 ->rawColumns(['tipe', 'status_badge', 'disposisi_badge', 'file', 'action'])
                     ->make(true);
@@ -102,6 +105,7 @@ class ManagementSuratController extends Controller
                     'has_file' => !empty($item->file),
                     'file_path' => $item->file,
                     'created_at' => $item->created_at->format('Y-m-d H:i:s'),
+                    'tanggal_dibuat' => $item->created_at->format('d-m-Y H:i:s'),
                     'created_at_raw' => $item->created_at,
                 ];
             });
@@ -133,6 +137,7 @@ class ManagementSuratController extends Controller
                         'has_file' => !empty($item->file_path),
                         'file_path' => $item->file_path,
                         'created_at' => $item->created_at->format('Y-m-d H:i:s'),
+                        'tanggal_dibuat' => $item->created_at->format('d-m-Y H:i:s'),
                         'created_at_raw' => $item->created_at,
                     ];
                 });

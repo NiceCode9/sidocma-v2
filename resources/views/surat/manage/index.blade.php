@@ -329,7 +329,7 @@
                         searchable: false
                     },
                     {
-                        data: 'created_at',
+                        data: 'tanggal_dibuat',
                         name: 'created_at'
                     },
                     {
@@ -365,7 +365,7 @@
                 },
                 {
                     data: 'tanggal_dibuat',
-                    name: 'tanggal_dibuat'
+                    name: 'created_at'
                 },
                 {
                     data: 'is_read',
@@ -398,7 +398,7 @@
                 order: isDirekturSuratKeluar ? [
                     [6, 'desc']
                 ] : [
-                    [5, 'desc']
+                    [4, 'desc']
                 ],
             });
 
