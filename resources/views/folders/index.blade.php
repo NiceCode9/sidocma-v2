@@ -215,7 +215,7 @@
                                 <input type="file" class="custom-file-input" id="fileInput" multiple>
                                 <label class="custom-file-label" for="fileInput">Pilih file...</label>
                             </div>
-                            <small class="form-text text-muted">Maksimal ukuran file 60MB per file</small>
+                            <small class="form-text text-muted">Maksimal ukuran file {{ config('documents.max_upload_size_mb') }}MB per file</small>
                         </div>
 
                         <div class="form-group">

@@ -84,7 +84,7 @@
                             <label>File Surat</label>
                             <input type="file" class="form-control-file" name="file" id="file"
                                 accept=".pdf,.doc,.docx">
-                            <small class="text-muted">Format: PDF, DOC, DOCX. Maksimal 60MB</small>
+                            <small class="text-muted">Format: PDF, DOC, DOCX. Maksimal {{ config('documents.max_upload_size_mb') }}MB</small>
                             <div class="invalid-feedback"></div>
                             <div id="currentFile" class="mt-2"></div>
                         </div>
@@ -301,7 +301,7 @@
                         Swal.fire({
                             icon: 'warning',
                             title: 'File Terlalu Besar',
-                            text: 'File melebihi batas maksimal 60MB.'
+                            text: 'File melebihi batas maksimal {{ config('documents.max_upload_size_mb') }}MB.'
                         });
                         return;
                     }

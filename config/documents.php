@@ -13,8 +13,8 @@ return [
     |
     */
 
-    'max_upload_size_mb' => 60,
+    'max_upload_size_mb' => 100,
 
-    'max_upload_size_bytes' => 60 * 1024 * 1024,
+    'max_upload_size_bytes' => 100 * 1024 * 1024,
 
 ];
