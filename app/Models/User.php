@@ -102,6 +102,13 @@ class User extends Authenticatable
         return $this->belongsTo(Unit::class);
     }
 
+    public function receivedSurats()
+    {
+        return $this->belongsToMany(\App\Models\Surat::class, 'surat_recipients')
+            ->withPivot('read_at')
+            ->withTimestamps();
+    }
+
     // Scopes
     public function scopeActive($query)
     {

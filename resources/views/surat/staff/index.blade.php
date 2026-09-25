@@ -429,6 +429,47 @@
             });
         }
 
+        function forwardSurat(id) {
+            Swal.fire({
+                title: 'Teruskan ke Super Admin?',
+                text: "Surat akan ditambahkan penerima Super Admin. Hanya Super Admin yang sudah menjadi penerima yang tidak akan diberi notifikasi ulang.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, Teruskan',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: "{{ route('kirim-surat.forward', ':id') }}".replace(':id', id),
+                        method: 'POST',
+                        data: {
+                            _token: "{{ csrf_token() }}"
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Berhasil!',
+                                    text: response.message,
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                });
+                            }
+                        },
+                        error: function(xhr) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: xhr.responseJSON?.message || 'Terjadi kesalahan saat meneruskan surat'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
         function deleteSurat(id) {
             Swal.fire({
                 title: 'Yakin ingin menghapus?',

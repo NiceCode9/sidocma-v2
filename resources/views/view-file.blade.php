@@ -16,6 +16,12 @@
                             <a href="{{ route('kirim-surat.download', $surat->id) }}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-download mr-1"></i> Download
                             </a>
+                            @if ($surat->isRecipient(auth()->user()) && !auth()->user()->hasRole('super admin'))
+                                <button type="button" class="btn btn-sm btn-info" id="forwardSuratBtn"
+                                    data-surat-id="{{ $surat->id }}">
+                                    <i class="fas fa-share mr-1"></i> Teruskan ke Super Admin
+                                </button>
+                            @endif
                             @if (auth()->user()->hasRole(['super admin', 'direktur']))
                                 <a href="{{ route('disposisi.create', ['type' => 'surat', 'id' => $surat->id]) }}" class="btn btn-sm btn-primary">
                                     <i class="fas fa-tasks mr-1"></i> Disposisi
@@ -274,6 +280,54 @@
 
             // Set permission untuk user
             window.canDownload = {{ auth()->user()->hasRole('super admin') ? 'true' : 'false' }};
+
+            // Teruskan surat ke Super Admin
+            const forwardSuratBtn = document.getElementById('forwardSuratBtn');
+            if (forwardSuratBtn) {
+                forwardSuratBtn.addEventListener('click', function() {
+                    const suratId = this.dataset.suratId;
+
+                    Swal.fire({
+                        title: 'Teruskan ke Super Admin?',
+                        text: 'Super Admin akan dapat membuka dan mengunduh surat ini.',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Ya, Teruskan',
+                        cancelButtonText: 'Batal'
+                    }).then((result) => {
+                        if (!result.isConfirmed) {
+                            return;
+                        }
+
+                        $.ajax({
+                            url: "{{ route('kirim-surat.forward', ':id') }}".replace(':id', suratId),
+                            method: 'POST',
+                            data: {
+                                _token: "{{ csrf_token() }}"
+                            },
+                            success: function(response) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Berhasil!',
+                                    text: response.message,
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                });
+                            },
+                            error: function(xhr) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Gagal',
+                                    text: (xhr.responseJSON && xhr.responseJSON.message) ||
+                                        'Terjadi kesalahan saat meneruskan surat'
+                                });
+                            }
+                        });
+                    });
+                });
+            }
 
             @if ($fileExtension === 'pdf')
                 // PDF Viewer Variables

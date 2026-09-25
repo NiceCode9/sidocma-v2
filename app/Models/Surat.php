@@ -48,6 +48,41 @@ class Surat extends Model
         return $this->belongsTo(User::class, 'opened_by');
     }
 
+    public function recipients()
+    {
+        return $this->belongsToMany(User::class, 'surat_recipients')
+            ->withPivot('read_at')
+            ->withTimestamps();
+    }
+
+    public function isRecipient(User $user): bool
+    {
+        return $this->recipients()->where('users.id', $user->id)->exists();
+    }
+
+    /**
+     * Surat dianggap "tidak privat" (legacy/grandfathered) bila tidak memiliki
+     * satupun penerima tercatat. Surat semacam itu tetap bisa diakses peran-peran
+     * berwenang agar data lama tidak hilang.
+     */
+    public function hasTrackedRecipients(): bool
+    {
+        return $this->recipients()->exists();
+    }
+
+    /**
+     * Scope surat yang bisa diakses user: pengirim, penerima tercatat,
+     * atau surat legacy (tanpa penerima tercatat).
+     */
+    public function scopeAccessibleTo($query, User $user)
+    {
+        return $query->where(function ($q) use ($user) {
+            $q->where('surats.user_id', $user->id)
+                ->orWhereDoesntHave('recipients')
+                ->orWhereHas('recipients', fn($r) => $r->where('users.id', $user->id));
+        });
+    }
+
     public function getRouteKeyName()
     {
         return 'no_surat';
@@ -62,6 +97,19 @@ class Surat extends Model
                 'opened_by' => Auth::user()->id ?? 1,
             ]);
         }
+    }
+
+    /**
+     * Tandai terbaca untuk user tertentu: tulis read_at pada pivot
+     * surat_recipients (per penerima) + jaga kompatibilitas read_at global.
+     */
+    public function markAsReadBy(User $user): void
+    {
+        if ($this->isRecipient($user)) {
+            $this->recipients()->updateExistingPivot($user->id, ['read_at' => now()]);
+        }
+
+        $this->markAsRead();
     }
 
     // Add accessor untuk check if read

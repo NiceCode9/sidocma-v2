@@ -13,6 +13,8 @@ use App\Services\PermissionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -33,7 +35,9 @@ class ManagementSuratController extends Controller
 
             // Super admin: hanya lihat Surat (perilaku asli)
             if ($user->hasRole('super admin') && !$user->hasRole('direktur')) {
-                $data = Surat::with('user.unit')->select('*');
+                $data = Surat::with('user.unit')
+                    ->accessibleTo($user)
+                    ->select('*');
 
                 return DataTables::of($data)
                     ->addIndexColumn()
@@ -75,6 +79,7 @@ class ManagementSuratController extends Controller
             // Direktur: gabungan Surat + Document (is_letter) yang butuh disposisi
             $suratList = Surat::with('user.unit')
                 ->where('needs_disposisi', true)
+                ->accessibleTo($user)
                 ->get()
                 ->map(function ($item) use ($disposisiStatuses) {
                 $key = 'surat_' . $item->id;
@@ -183,19 +188,22 @@ class ManagementSuratController extends Controller
 
         // Super admin: hanya Surat
         if ($user->hasRole('super admin') && !$user->hasRole('direktur')) {
+            $suratQuery = Surat::accessibleTo($user);
+
             return response()->json([
-                'totalSuratMasuk' => Surat::count(),
-                'suratMasukDibaca' => Surat::whereNotNull('read_at')->count(),
-                'suratMasukBelumDibaca' => Surat::whereNull('read_at')->count(),
-                'suratMasukHariIni' => Surat::whereDate('created_at', today())->count(),
+                'totalSuratMasuk' => (clone $suratQuery)->count(),
+                'suratMasukDibaca' => (clone $suratQuery)->whereNotNull('read_at')->count(),
+                'suratMasukBelumDibaca' => (clone $suratQuery)->whereNull('read_at')->count(),
+                'suratMasukHariIni' => (clone $suratQuery)->whereDate('created_at', today())->count(),
             ]);
         }
 
         // Direktur: gabungan (hanya yang butuh disposisi)
-        $suratTotal = Surat::where('needs_disposisi', true)->count();
-        $suratDibaca = Surat::where('needs_disposisi', true)->whereNotNull('read_at')->count();
-        $suratBelum = Surat::where('needs_disposisi', true)->whereNull('read_at')->count();
-        $suratHariIni = Surat::where('needs_disposisi', true)->whereDate('created_at', today())->count();
+        $suratBase = Surat::where('needs_disposisi', true)->accessibleTo($user);
+        $suratTotal = (clone $suratBase)->count();
+        $suratDibaca = (clone $suratBase)->whereNotNull('read_at')->count();
+        $suratBelum = (clone $suratBase)->whereNull('read_at')->count();
+        $suratHariIni = (clone $suratBase)->whereDate('created_at', today())->count();
 
         $docTotal = Document::where('is_letter', true)->where('needs_disposisi', true)->where('is_active', true)->count();
         $docDibaca = Document::where('is_letter', true)->where('needs_disposisi', true)->where('is_active', true)
@@ -445,20 +453,40 @@ class ManagementSuratController extends Controller
         if ($request->ajax()) {
             $userUnitId = Auth::user()->unit_id;
 
-            $data = Surat::with('user')
+            $data = Surat::with(['user', 'recipients'])
                 ->whereHas('user', function ($query) use ($userUnitId) {
                     $query->where('unit_id', $userUnitId);
                 })
+                ->accessibleTo(Auth::user())
                 ->select('*');
 
             return DataTables::of($data)
                 ->addIndexColumn()
                 ->addColumn('laporan_dibaca', function ($row) {
+                    $total = $row->recipients->count();
+
+                    if ($total > 0) {
+                        $read = $row->recipients->filter(fn($r) => !is_null($r->pivot->read_at))->count();
+
+                        return $read === $total
+                            ? '<span class="badge badge-success"><i class="fas fa-check"></i> Dibaca (' . $read . '/' . $total . ')</span>'
+                            : '<span class="badge badge-warning"><i class="fas fa-times"></i> Belum Dibaca (' . $read . '/' . $total . ')</span>';
+                    }
+
                     return $row->is_read
                         ? '<span class="badge badge-success"><i class="fas fa-check"></i> Dibaca</span>'
                         : '<span class="badge badge-warning"><i class="fas fa-times"></i> Belum Dibaca</span>';
                 })
                 ->addColumn('waktu_dibaca', function ($row) {
+                    $readTimes = $row->recipients
+                        ->map(fn($r) => $r->pivot->read_at)
+                        ->filter()
+                        ->map(fn($readAt) => Carbon::parse($readAt));
+
+                    if ($readTimes->isNotEmpty()) {
+                        return $readTimes->max()->format('d-m-Y H:i:s');
+                    }
+
                     return $row->read_at ? Carbon::parse($row->read_at)->format('d-m-Y H:i:s') : '-';
                 })
                 ->addColumn('tanggal_dikirim', function ($row) {
@@ -472,12 +500,17 @@ class ManagementSuratController extends Controller
                                 </a>';
                     }
 
+                    $forwardBtn = '<button type="button" class="btn btn-info btn-sm" onclick="forwardSurat(' . $row->id . ')" title="Teruskan ke Super Admin">
+                        <i class="fas fa-share"></i>
+                    </button>';
+
                     return '
                 <div class="btn-group">
                     ' . $downloadBtn . '
                     <a href="' . route('surat.view', $row->id) . '" class="btn btn-info btn-sm" title="Lihat Surat">
                         <i class="fas fa-eye"></i>
                     </a>
+                    ' . $forwardBtn . '
                     <button type="button" class="btn btn-warning btn-sm" onclick="editSurat(' . $row->id . ')" title="Edit">
                         <i class="fas fa-edit"></i>
                     </button>
@@ -543,7 +576,9 @@ class ManagementSuratController extends Controller
         }
 
         // Buat surat baru
-        $surat = Surat::create($data);
+        $surat = DB::transaction(function () use ($data) {
+            return Surat::create($data);
+        });
 
         // Kirim ke user terpilih (super admin ATAU is_legal = true)
         $recipients = User::where(function ($q) {
@@ -552,6 +587,9 @@ class ManagementSuratController extends Controller
         })
             ->whereIn('id', $request->recipient_ids)
             ->get();
+
+        // Catat penerima sebagai accessor surat privat
+        $surat->recipients()->sync($recipients->pluck('id'));
 
         // Broadcast event dengan data surat dan users
         broadcast(new SuratCreate($surat, $recipients));
@@ -567,9 +605,47 @@ class ManagementSuratController extends Controller
         ]);
     }
 
+    public function forwardToSuperAdmin($id)
+    {
+        $surat = Surat::findOrFail($id);
+
+        if (!Gate::allows('view', $surat)) {
+            abort(403, 'Anda tidak memiliki akses ke surat ini.');
+        }
+
+        $superAdmins = User::role('super admin')->get();
+
+        if ($superAdmins->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak ada user super admin yang dapat dipilih.',
+            ], 422);
+        }
+
+        $newRecipients = $superAdmins->reject(
+            fn(User $admin) => $surat->isRecipient($admin)
+        );
+
+        $surat->recipients()->syncWithoutDetaching($newRecipients->pluck('id'));
+
+        if ($newRecipients->isNotEmpty()) {
+            broadcast(new SuratCreate($surat->fresh(), $newRecipients));
+            Notification::send($newRecipients, new SuratNotification($surat, 'surat_masuk', Auth::user()));
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $newRecipients->isEmpty()
+                ? 'Surat sudah diteruskan ke super admin.'
+                : 'Surat berhasil diteruskan ke ' . $newRecipients->count() . ' super admin.',
+        ]);
+    }
+
     public function show($id)
     {
         $surat = Surat::with('user')->findOrFail($id);
+
+        $this->authorize('view', $surat);
 
         return response()->json([
             'success' => true,
@@ -580,6 +656,8 @@ class ManagementSuratController extends Controller
     public function update(Request $request, $id)
     {
         $surat = Surat::findOrFail($id);
+
+        $this->authorize('update', $surat);
 
         $maxSizeMb = config('documents.max_upload_size_mb');
 
@@ -622,6 +700,8 @@ class ManagementSuratController extends Controller
     {
         $surat = Surat::findOrFail($id);
 
+        $this->authorize('delete', $surat);
+
         // Delete file if exists
         if ($surat->file) {
             Storage::disk('public')->delete($surat->file);
@@ -639,24 +719,13 @@ class ManagementSuratController extends Controller
     {
         try {
             $surat = Surat::find($id);
+
+            $this->authorize('canDownload', $surat);
+
             $user = Auth::user();
-
-            // Authorization: super admin, direktur, atau unit target disposisi
-            $isTargetUnit = \App\Models\Disposisi::where('surat_id', $surat->id)
-                ->whereHas('targets', fn($q) => $q->where('unit_id', $user->unit_id))
-                ->exists();
-
-            if (!$user->hasRole(['super admin', 'direktur']) && !$isTargetUnit) {
-                abort(403, 'Anda tidak memiliki akses untuk mengunduh surat ini.');
-            }
 
             if (!$surat->file) {
                 abort(404, 'File tidak ditemukan');
-            }
-
-            // Mark as read jika user adalah super admin
-            if ($user->hasRole('super admin')) {
-                $surat->markAsRead();
             }
 
             $filePath = storage_path('app/public/' . $surat->file);
@@ -664,6 +733,9 @@ class ManagementSuratController extends Controller
             if (!file_exists($filePath)) {
                 abort(404, 'File tidak ditemukan di server');
             }
+
+            // Mark as read oleh pembuka (per penerima)
+            $surat->markAsReadBy($user);
 
             // Get original filename without timestamp prefix
             $originalName = preg_replace('/^\d+_/', '', basename($surat->file));
@@ -680,8 +752,10 @@ class ManagementSuratController extends Controller
      */
     public function getUnreadCount()
     {
-        // $unreadCount = Surat::where('is_read', false)->count();
-        $unreadCount = Surat::whereNull('read_at')->count();
+        $unreadCount = Surat::whereHas('recipients', function ($q) {
+            $q->where('users.id', Auth::id())
+                ->whereNull('surat_recipients.read_at');
+        })->count();
 
         return response()->json([
             'success' => true,
@@ -696,12 +770,16 @@ class ManagementSuratController extends Controller
     {
         $limit = $request->get('limit', 10);
 
-        $notifications = Surat::with('user')
+        $notifications = Surat::with(['user', 'recipients'])
             ->orderBy('created_at', 'desc')
-            ->whereNull('read_at')
+            ->whereHas('recipients', function ($q) {
+                $q->where('users.id', Auth::id())
+                    ->whereNull('surat_recipients.read_at');
+            })
             ->limit($limit)
             ->get()
             ->map(function ($surat) {
+                $recipient = $surat->recipients->first()->pivot ?? null;
                 return [
                     'id' => $surat->id,
                     'title' => 'Surat Masuk Baru',
@@ -710,8 +788,8 @@ class ManagementSuratController extends Controller
                     'no_surat' => $surat->no_surat,
                     'created_at' => $surat->created_at,
                     'time_ago' => $surat->created_at->diffForHumans(),
-                    'is_read' => !is_null($surat->read_at),
-                    'url' => ''
+                    'is_read' => !is_null($recipient?->read_at),
+                    'url' => route('surat.view', $surat->id) ?? ''
                 ];
             });
 
@@ -727,7 +805,10 @@ class ManagementSuratController extends Controller
     public function markAsRead($id)
     {
         $surat = Surat::findOrFail($id);
-        $surat->markAsRead();
+
+        $this->authorize('view', $surat);
+
+        $surat->markAsReadBy(Auth::user());
 
         if ($surat->user_id) {
             event(new \App\Events\SuratReaded($surat, auth()->user()));
@@ -744,13 +825,14 @@ class ManagementSuratController extends Controller
      */
     public function markAllAsRead()
     {
-        $surats = Surat::with('users')->whereNull('read_at')->get();
+        $surats = Surat::with('recipients')
+            ->whereHas('recipients', fn($q) => $q->where('users.id', Auth::id()))
+            ->get();
 
-        Surat::whereNull('read_at')
-            ->update([
-                'read_at' => now(),
-                'opened_by' => Auth::user()->id
-            ]);
+        Surat::whereHas('recipients', fn($q) => $q->where('users.id', Auth::id()))
+            ->get()
+            ->each(fn($surat) => $surat->recipients()
+                ->updateExistingPivot(Auth::id(), ['read_at' => now()]));
 
         foreach ($surats as $surat) {
             if ($surat->user_id) {
@@ -769,14 +851,7 @@ class ManagementSuratController extends Controller
         $surat = Surat::find($id);
         $user = Auth::user();
 
-        // Authorization: super admin, direktur, atau unit target disposisi
-        $isTargetUnit = \App\Models\Disposisi::where('surat_id', $surat->id)
-            ->whereHas('targets', fn($q) => $q->where('unit_id', $user->unit_id))
-            ->exists();
-
-        if (!$user->hasRole(['super admin', 'direktur']) && !$isTargetUnit) {
-            abort(403, 'Anda tidak memiliki akses untuk melihat surat ini.');
-        }
+        $this->authorize('canDownload', $surat);
 
         $filePath = Storage::disk('public')->path($surat->file);
 
@@ -792,10 +867,8 @@ class ManagementSuratController extends Controller
             $docxHtml = $this->convertDocxToHtml($surat->id);
         }
 
-        // Mark as read
-        if ($user->hasRole('super admin')) {
-            $surat->markAsRead();
-        }
+        // Mark as read oleh pembuka (per penerima)
+        $surat->markAsReadBy($user);
 
         return view('view-file', compact('surat', 'fileExtension', 'docxHtml'));
     }
@@ -805,14 +878,7 @@ class ManagementSuratController extends Controller
         $surat = Surat::find($id);
         $user = Auth::user();
 
-        // Authorization: super admin, direktur, atau unit target disposisi
-        $isTargetUnit = \App\Models\Disposisi::where('surat_id', $surat->id)
-            ->whereHas('targets', fn($q) => $q->where('unit_id', $user->unit_id))
-            ->exists();
-
-        if (!$user->hasRole(['super admin', 'direktur']) && !$isTargetUnit) {
-            abort(403);
-        }
+        $this->authorize('canDownload', $surat);
 
         $filePath = Storage::disk('public')->path($surat->file);
 
@@ -928,7 +994,9 @@ class ManagementSuratController extends Controller
     public function viewDocxHtml(string $id)
     {
         $surat = Surat::find($id);
-        // dd($surat);
+
+        $this->authorize('canDownload', $surat);
+
         $cacheFile = storage_path('app/public/docx_cache/' . $surat->id . '.html');
 
         if (!file_exists($cacheFile)) {

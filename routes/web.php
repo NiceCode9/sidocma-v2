@@ -73,6 +73,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/{id}', [ManagementSuratController::class, 'update'])->name('kirim-surat.update');
         Route::delete('/{id}', [ManagementSuratController::class, 'destroy'])->name('kirim-surat.destroy');
         Route::get('/{id}/download', [ManagementSuratController::class, 'download'])->name('kirim-surat.download');
+        Route::post('/{id}/forward', [ManagementSuratController::class, 'forwardToSuperAdmin'])->name('kirim-surat.forward');
     });
 
     Route::prefix('surat-masuk')->group(function () {
