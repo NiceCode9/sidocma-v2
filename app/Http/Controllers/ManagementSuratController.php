@@ -499,15 +499,19 @@ class ManagementSuratController extends Controller
                 })
                 ->addColumn('action', function ($row) {
                     $downloadBtn = '';
+                    $forwardBtn = '';
                     if ($row->file) {
                         $downloadBtn = '<a href="' . route('kirim-surat.download', $row->id) . '" class="btn btn-success btn-sm" title="Download">
                                     <i class="fas fa-download"></i>
                                 </a>';
                     }
 
-                    $forwardBtn = '<button type="button" class="btn btn-info btn-sm" onclick="forwardSurat(' . $row->id . ')" title="Teruskan ke Super Admin">
-                        <i class="fas fa-share"></i>
-                    </button>';
+                    if(auth()->user()->is_legal) {
+                        $forwardBtn = '<button type="button" class="btn btn-info btn-sm" onclick="forwardSurat(' . $row->id . ')" title="Teruskan ke Super Admin">
+                            <i class="fas fa-share"></i>
+                        </button>';
+
+                    }
 
                     return '
                 <div class="btn-group">
