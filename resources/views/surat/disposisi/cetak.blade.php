@@ -267,7 +267,7 @@
             @endif
             <tr>
                 <th>Dsiposisi oleh</th>
-                <td>: {{ $disposisi->creator->name ?? '-' }}, {{ $disposisi->created_at->format('d-m-Y H:i') }}</td>
+                <td>: {{ $disposisi->creator->name ?? '-' }}</td>
             </tr>
         </table>
 
