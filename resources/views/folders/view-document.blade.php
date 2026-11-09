@@ -11,6 +11,17 @@
         integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
 
     <title>Preview Document</title>
+    <style>
+        .no-select { -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none; }
+        #pdf-toolbar { background-color:#f8f9fa !important; border-bottom:1px solid #dee2e6; }
+        .pdf-page { background:#fff; border:1px solid #ccc; box-shadow:0 2px 10px rgba(0,0,0,0.1); margin-bottom:16px; }
+        .pdf-page canvas { display:block; }
+        .pdf-thumb { cursor:pointer; border:2px solid transparent; border-radius:4px; margin-bottom:8px; text-align:center; }
+        .pdf-thumb canvas { border:1px solid #ccc; background:#fff; max-width:100%; }
+        .pdf-thumb:hover { border-color:#b6d4fe; }
+        .pdf-thumb.active { border-color:#007bff; background:#e7f1ff; }
+        @media (max-width: 767.98px) { .pdf-page { max-width:100%; } }
+    </style>
 </head>
 
 <body>
@@ -33,39 +44,33 @@
 
                     <div class="card-body p-0">
                         @if ($fileExtension === 'pdf')
-                            {{-- Custom PDF Viewer dengan PDF.js --}}
-                            <div id="pdf-viewer-container" style="height: 80vh; position: relative;">
+                            {{-- Custom PDF Viewer dengan PDF.js - scroll + thumbnail --}}
+                            <div id="pdf-viewer-container" style="height: 80vh; display:flex; flex-direction:column;">
                                 <!-- Custom Toolbar -->
                                 <div id="pdf-toolbar"
                                     class="d-flex justify-content-between align-items-center p-2 border-bottom bg-light">
                                     <div>
-                                        <button id="prev-page" class="btn btn-sm btn-outline-secondary" disabled>
-                                            <i class="fas fa-chevron-left"></i> Prev
-                                        </button>
                                         <span id="page-info" class="mx-2">
                                             Page <span id="page-num">1</span> of <span id="page-count">-</span>
                                         </span>
-                                        <button id="next-page" class="btn btn-sm btn-outline-secondary" disabled>
-                                            Next <i class="fas fa-chevron-right"></i>
-                                        </button>
+                                        <span class="text-muted d-none d-md-inline">— scroll untuk membaca, klik thumbnail untuk lompat</span>
                                     </div>
                                     <div>
                                         <button id="zoom-out" class="btn btn-sm btn-outline-secondary">
                                             <i class="fas fa-search-minus"></i>
                                         </button>
-                                        <span id="zoom-level" class="mx-2">100%</span>
+                                        <span id="zoom-level" class="mx-2">120%</span>
                                         <button id="zoom-in" class="btn btn-sm btn-outline-secondary">
                                             <i class="fas fa-search-plus"></i>
                                         </button>
                                     </div>
                                 </div>
 
-                                <!-- PDF Canvas Container -->
-                                <div id="pdf-canvas-container"
-                                    style="overflow: auto; height: calc(100% - 50px); background: #f0f0f0;">
-                                    <div class="d-flex justify-content-center p-3">
-                                        <canvas id="pdf-canvas"
-                                            style="border: 1px solid #ccc; box-shadow: 0 2px 10px rgba(0,0,0,0.1);"></canvas>
+                                <div class="d-flex" style="flex:1; min-height:0;">
+                                    <div id="pdf-thumbnails" class="bg-light border-right p-2 d-none d-md-block"
+                                        style="width:132px; flex-shrink:0; overflow-y:auto;"></div>
+                                    <div id="pdf-canvas-container" style="flex:1; overflow-y:auto; background: #f0f0f0; min-height:0;">
+                                        <div id="pdf-pages" class="d-flex flex-column align-items-center p-3"></div>
                                     </div>
                                 </div>
                             </div>
@@ -357,121 +362,136 @@
         // window.canDownload = {{ auth()->user()->hasRole('super admin') ? 'true' : 'false' }};
 
         @if ($fileExtension === 'pdf')
-            // PDF Viewer Variables
+            // PDF Viewer: scroll + thumbnail (lazy render)
             let pdfDoc = null;
-            let pageNum = 1;
-            let pageRendering = false;
-            let pageNumPending = null;
             let scale = 1.2;
-            const canvas = document.getElementById('pdf-canvas');
-            const ctx = canvas.getContext('2d');
+            const THUMB_SCALE = 0.25;
+            const rendered = new Set();
+            const rendering = new Set();
+            const thumbRendered = new Set();
+            const pagesEl = document.getElementById('pdf-pages');
+            const thumbsEl = document.getElementById('pdf-thumbnails');
+            const mainScrollEl = document.getElementById('pdf-canvas-container');
 
-            // Load PDF
             const pdfUrl = "{{ route('documents.stream-file', $document->id) }}";
+
+            function renderMainPage(num, force) {
+                if (!force && rendered.has(num)) return;
+                if (rendering.has(num)) return;
+                const pageEl = pagesEl.querySelector(`.pdf-page[data-page="${num}"]`);
+                if (!pageEl) return;
+                const canvas = pageEl.querySelector('canvas');
+                rendering.add(num);
+                pdfDoc.getPage(num).then(function(page) {
+                    const viewport = page.getViewport({ scale: scale });
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    return page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+                }).then(function() {
+                    rendered.add(num);
+                }).catch(function(error) {
+                    console.error('Error rendering page ' + num + ':', error);
+                }).finally(function() {
+                    rendering.delete(num);
+                });
+            }
+
+            function renderThumb(num) {
+                if (thumbRendered.has(num)) return;
+                const thumbEl = thumbsEl.querySelector(`.pdf-thumb[data-page="${num}"]`);
+                if (!thumbEl) return;
+                const canvas = thumbEl.querySelector('canvas');
+                pdfDoc.getPage(num).then(function(page) {
+                    const viewport = page.getViewport({ scale: THUMB_SCALE });
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    return page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+                }).then(function() {
+                    thumbRendered.add(num);
+                }).catch(function(error) {
+                    console.error('Error rendering thumb ' + num + ':', error);
+                });
+            }
+
+            function setActivePage(num) {
+                document.getElementById('page-num').textContent = num;
+                thumbsEl.querySelectorAll('.pdf-thumb.active').forEach(function(el) { el.classList.remove('active'); });
+                const thumbEl = thumbsEl.querySelector(`.pdf-thumb[data-page="${num}"]`);
+                if (thumbEl) {
+                    thumbEl.classList.add('active');
+                    thumbEl.scrollIntoView({ block: 'nearest' });
+                }
+            }
+
+            function buildPageSlots(numPages) {
+                for (let i = 1; i <= numPages; i++) {
+                    const pageDiv = document.createElement('div');
+                    pageDiv.className = 'pdf-page';
+                    pageDiv.dataset.page = i;
+                    pageDiv.innerHTML = '<canvas></canvas><div class="text-center small text-muted mt-1">Halaman ' + i + '</div>';
+                    pagesEl.appendChild(pageDiv);
+
+                    const thumbDiv = document.createElement('div');
+                    thumbDiv.className = 'pdf-thumb' + (i === 1 ? ' active' : '');
+                    thumbDiv.dataset.page = i;
+                    thumbDiv.innerHTML = '<canvas></canvas><div class="small text-muted">' + i + '</div>';
+                    thumbDiv.addEventListener('click', function() {
+                        const target = pagesEl.querySelector(`.pdf-page[data-page="${i}"]`);
+                        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        setActivePage(i);
+                        if (!rendered.has(i)) renderMainPage(i);
+                    });
+                    thumbsEl.appendChild(thumbDiv);
+                }
+                document.getElementById('page-count').textContent = numPages;
+
+                const mainObserver = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting) renderMainPage(parseInt(entry.target.dataset.page, 10));
+                    });
+                }, { root: mainScrollEl, rootMargin: '400px' });
+                pagesEl.querySelectorAll('.pdf-page').forEach(function(el) { mainObserver.observe(el); });
+
+                if (thumbsEl) {
+                    const thumbObserver = new IntersectionObserver(function(entries) {
+                        entries.forEach(function(entry) {
+                            if (entry.isIntersecting) renderThumb(parseInt(entry.target.dataset.page, 10));
+                        });
+                    }, { root: thumbsEl, rootMargin: '200px' });
+                    thumbsEl.querySelectorAll('.pdf-thumb').forEach(function(el) { thumbObserver.observe(el); });
+                }
+
+                const spyObserver = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting) setActivePage(parseInt(entry.target.dataset.page, 10));
+                    });
+                }, { root: mainScrollEl, threshold: 0.4 });
+                pagesEl.querySelectorAll('.pdf-page').forEach(function(el) { spyObserver.observe(el); });
+
+                renderMainPage(1);
+            }
 
             pdfjsLib.getDocument(pdfUrl).promise.then(function(pdfDoc_) {
                 pdfDoc = pdfDoc_;
-                document.getElementById('page-count').textContent = pdfDoc.numPages;
-
-                // Enable/disable navigation buttons
-                document.getElementById('prev-page').disabled = pageNum <= 1;
-                document.getElementById('next-page').disabled = pageNum >= pdfDoc.numPages;
-
-                // Initial page render
-                renderPage(pageNum);
+                buildPageSlots(pdfDoc.numPages);
             }).catch(function(error) {
                 console.error('Error loading PDF:', error);
-                document.getElementById('pdf-canvas-container').innerHTML =
-                    '<div class="alert alert-danger m-3">Error loading PDF file</div>';
+                mainScrollEl.innerHTML = '<div class="alert alert-danger m-3">Error loading PDF file</div>';
             });
 
-            // Render page
-            function renderPage(num) {
-                pageRendering = true;
-
-                pdfDoc.getPage(num).then(function(page) {
-                    const viewport = page.getViewport({
-                        scale: scale
-                    });
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-
-                    const renderContext = {
-                        canvasContext: ctx,
-                        viewport: viewport
-                    };
-
-                    const renderTask = page.render(renderContext);
-
-                    renderTask.promise.then(function() {
-                        pageRendering = false;
-                        if (pageNumPending !== null) {
-                            renderPage(pageNumPending);
-                            pageNumPending = null;
-                        }
-                    });
-                });
-
-                document.getElementById('page-num').textContent = num;
+            function applyZoom() {
+                document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
+                Array.from(rendered).forEach(function(num) { renderMainPage(num, true); });
             }
 
-            // Queue rendering
-            function queueRenderPage(num) {
-                if (pageRendering) {
-                    pageNumPending = num;
-                } else {
-                    renderPage(num);
-                }
-            }
-
-            // Previous page
-            document.getElementById('prev-page').addEventListener('click', function() {
-                if (pageNum <= 1) return;
-                pageNum--;
-                queueRenderPage(pageNum);
-
-                document.getElementById('prev-page').disabled = pageNum <= 1;
-                document.getElementById('next-page').disabled = false;
-            });
-
-            // Next page
-            document.getElementById('next-page').addEventListener('click', function() {
-                if (pageNum >= pdfDoc.numPages) return;
-                pageNum++;
-                queueRenderPage(pageNum);
-
-                document.getElementById('next-page').disabled = pageNum >= pdfDoc.numPages;
-                document.getElementById('prev-page').disabled = false;
-            });
-
-            // Zoom in
             document.getElementById('zoom-in').addEventListener('click', function() {
-                if (scale < 3) {
-                    scale += 0.2;
-                    document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
-                    queueRenderPage(pageNum);
-                }
+                if (scale < 3) { scale += 0.2; applyZoom(); }
             });
 
-            // Zoom out
             document.getElementById('zoom-out').addEventListener('click', function() {
-                if (scale > 0.5) {
-                    scale -= 0.2;
-                    document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
-                    queueRenderPage(pageNum);
-                }
+                if (scale > 0.5) { scale -= 0.2; applyZoom(); }
             });
         @endif
-
-        // Office Online Viewer for Word documents
-        function viewWithOfficeOnline() {
-            const streamUrl = "{{ route('documents.stream-file', $document->id) }}";
-            const officeUrl =
-                `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(window.location.origin + streamUrl)}`;
-
-            document.getElementById('office-viewer-frame').src = officeUrl;
-            document.getElementById('office-viewer-container').style.display = 'block';
-        }
 
         // Security measures
         document.addEventListener('keydown', function(e) {
@@ -533,18 +553,16 @@
         @else
             // Online viewers functions (same as before)
             function viewWithOfficeOnline() {
-                const streamUrl = "{{ route('documents.stream-file', $document) }}";
-                const fullUrl = window.location.origin + streamUrl;
-                const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fullUrl)}`;
+                const streamUrl = "{{ route('documents.stream-file', $document->id) }}";
+                const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(streamUrl)}`;
 
                 document.getElementById('office-viewer-frame').src = officeUrl;
                 document.getElementById('office-viewer-container').style.display = 'block';
             }
 
             function viewWithGoogleDocs() {
-                const streamUrl = "{{ route('documents.stream-file', $document) }}";
-                const fullUrl = window.location.origin + streamUrl;
-                const googleUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
+                const streamUrl = "{{ route('documents.stream-file', $document->id) }}";
+                const googleUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(streamUrl)}&embedded=true`;
 
                 document.getElementById('google-docs-frame').src = googleUrl;
                 document.getElementById('google-docs-container').style.display = 'block';
